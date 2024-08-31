@@ -208,7 +208,9 @@ const ExpenseSummary: React.FC = () => {
           <div className="card text-center">
             <div className="card-body">
               <h5 className="card-title">Total de Ingresos</h5>
-              <p className="card-text">${totalIncome.toFixed(2)}</p>
+              <p className="card-text">
+                ${totalIncome.toLocaleString("es-ES")}
+              </p>
             </div>
           </div>
         </div>
@@ -216,7 +218,9 @@ const ExpenseSummary: React.FC = () => {
           <div className="card text-center">
             <div className="card-body">
               <h5 className="card-title">Deuda total de tarjeta de crédito</h5>
-              <p className="card-text">${totalCredit.toFixed(2)}</p>
+              <p className="card-text">
+                ${totalCredit.toLocaleString("es-ES")}
+              </p>
             </div>
           </div>
         </div>
@@ -224,7 +228,7 @@ const ExpenseSummary: React.FC = () => {
           <div className="card text-center">
             <div className="card-body">
               <h5 className="card-title">Gastos fijos totales</h5>
-              <p className="card-text">${totalFixed.toFixed(2)}</p>
+              <p className="card-text">${totalFixed.toLocaleString("es-ES")}</p>
             </div>
           </div>
         </div>
@@ -233,7 +237,10 @@ const ExpenseSummary: React.FC = () => {
             <div className="card-body">
               <h5 className="card-title">Monto restante</h5>
               <p className="card-text">
-                ${(totalIncome - totalCredit - totalFixed).toFixed(2)}
+                $
+                {(totalIncome - totalCredit - totalFixed).toLocaleString(
+                  "es-ES"
+                )}
               </p>
             </div>
           </div>
@@ -264,7 +271,7 @@ const ExpenseSummary: React.FC = () => {
                   ? "Gasto"
                   : "Ingreso"}
               </td>
-              <td>${expense.amount.toFixed(2)}</td>
+              <td>${expense.amount.toLocaleString("es-ES")}</td>
               <td>{expense.category}</td>
               <td>{expense.description}</td>
               <td>{expense.createdAt.toLocaleDateString()}</td>
