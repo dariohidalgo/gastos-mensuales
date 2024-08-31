@@ -8,6 +8,7 @@ import {
   Timestamp,
   deleteDoc,
   doc,
+  addDoc,
 } from "firebase/firestore";
 
 // Interfaz para los gastos
@@ -37,13 +38,10 @@ const calculateTotalCreditByMonth = (
   selectedMonth: number,
   selectedYear: number
 ): number => {
-  // Filtrar gastos de tarjeta de crédito según el mes y año seleccionados
   const filteredCreditCardExpenses = creditCardExpenses.flatMap((expense) => {
     const expenseDate = new Date(expense.date);
     const expenseMonth = expenseDate.getMonth() + 1;
     const expenseYear = expenseDate.getFullYear();
-
-    // Calcular las cuotas que pertenecen al mes seleccionado
     const monthsSinceStart =
       (selectedYear - expenseYear) * 12 + (selectedMonth - (expenseMonth + 1));
 
@@ -54,7 +52,6 @@ const calculateTotalCreditByMonth = (
     return 0;
   });
 
-  // Sumar todos los gastos filtrados para el mes seleccionado
   return filteredCreditCardExpenses.reduce((acc, amount) => acc + amount, 0);
 };
 
@@ -70,6 +67,12 @@ const ExpenseSummary: React.FC = () => {
   const [totalFixed, setTotalFixed] = useState<number>(0);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear] = useState<number>(new Date().getFullYear());
+
+  // Estados para los inputs
+  const [amount, setAmount] = useState<string>("");
+  const [type, setType] = useState<string>("Ingresos");
+  const [category, setCategory] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -136,7 +139,6 @@ const ExpenseSummary: React.FC = () => {
         .filter((expense) => expense.type === "Gastos")
         .reduce((acc, expense) => acc + expense.amount, 0);
 
-      // Ajuste para el cálculo del total del crédito
       const totalCreditForMonth = calculateTotalCreditByMonth(
         creditCardExpenses,
         parseInt(selectedMonth),
@@ -157,6 +159,51 @@ const ExpenseSummary: React.FC = () => {
     setSelectedMonth(selectedMonth);
   };
 
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, "expenses"), {
+        amount: parseFloat(amount),
+        type,
+        category,
+        description,
+        createdAt: new Date(),
+        userName: "Usuario Actual", // Reemplaza por el nombre del usuario actual
+        installments: type === "Tarjeta de Credito" ? 1 : 0,
+      });
+
+      // Limpiar los inputs después de agregar el gasto
+      setAmount("");
+      setType("Ingresos");
+      setCategory("");
+      setDescription("");
+
+      // Actualizar la lista de gastos después de agregar un nuevo gasto
+      const q = query(collection(db, "expenses"));
+      const querySnapshot = await getDocs(q);
+      const expensesData: Expense[] = querySnapshot.docs.map(
+        (doc: DocumentData) => {
+          const data = doc.data() as Omit<Expense, "id" | "createdAt"> & {
+            createdAt: Timestamp;
+          };
+          const createdAt =
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate()
+              : new Date();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt,
+          };
+        }
+      );
+
+      setExpenses(expensesData);
+    } catch (error) {
+      console.error("Error al agregar el gasto: ", error);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this expense?"
@@ -174,7 +221,60 @@ const ExpenseSummary: React.FC = () => {
   };
 
   return (
-    <div className="container mt-4">
+    <div className="container mt-4 ">
+      {/* Formulario para agregar nuevos gastos */}
+      <form
+        onSubmit={handleAddExpense}
+        className="row mb-4 justify-content-center"
+      >
+        <div className="col-md-2">
+          <input
+            type="number"
+            className="form-control"
+            placeholder="Monto"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
+          <select
+            className="form-select"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
+            <option value="Ingresos">Ingresos</option>
+            <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
+            <option value="Gastos">Gastos</option>
+          </select>
+        </div>
+        <div className="col-md-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Categoría"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Descripción"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="col-md-2">
+          <button type="submit" className="btn btn-primary">
+            Agregar Gasto
+          </button>
+        </div>
+      </form>
+
+      {/* Select para filtrar por mes */}
       <div className="row mb-4 d-flex justify-content-center">
         <div className="col-md-3 text-center">
           <label htmlFor="monthFilter" className="form-label">
@@ -203,6 +303,7 @@ const ExpenseSummary: React.FC = () => {
         </div>
       </div>
 
+      {/* Resumen de gastos */}
       <div className="row mb-4">
         <div className="col-md-3">
           <div className="card text-center">
@@ -247,6 +348,7 @@ const ExpenseSummary: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabla de transacciones */}
       <h3 className="mb-3">Todas las transacciones:</h3>
       <table className="table table-striped">
         <thead>
