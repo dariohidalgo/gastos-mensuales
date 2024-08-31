@@ -222,58 +222,6 @@ const ExpenseSummary: React.FC = () => {
 
   return (
     <div className="container mt-4 ">
-      {/* Formulario para agregar nuevos gastos */}
-      <form
-        onSubmit={handleAddExpense}
-        className="row mb-4 justify-content-center"
-      >
-        <div className="col-md-2">
-          <input
-            type="number"
-            className="form-control"
-            placeholder="Monto"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-        </div>
-        <div className="col-md-2">
-          <select
-            className="form-select"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          >
-            <option value="Ingresos">Ingresos</option>
-            <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
-            <option value="Gastos">Gastos</option>
-          </select>
-        </div>
-        <div className="col-md-2">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Categoría"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-          />
-        </div>
-        <div className="col-md-2">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Descripción"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-        <div className="col-md-2">
-          <button type="submit" className="btn btn-primary">
-            Agregar Gasto
-          </button>
-        </div>
-      </form>
-
       {/* Select para filtrar por mes */}
       <div className="row mb-4 d-flex justify-content-center">
         <div className="col-md-3 text-center">
@@ -346,6 +294,57 @@ const ExpenseSummary: React.FC = () => {
             </div>
           </div>
         </div>
+        {/* Formulario para agregar nuevos gastos */}
+        <form
+          onSubmit={handleAddExpense}
+          className="row mb-4 mt-5 justify-content-center"
+        >
+          <div className="col-md-2">
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Monto"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <select
+              className="form-select"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            >
+              <option value="Ingresos">Ingresos</option>
+              <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
+              <option value="Gastos">Gastos</option>
+            </select>
+          </div>
+          <div className="col-md-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Categoría"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Descripción"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="col-md-2">
+            <button type="submit" className="btn btn-primary">
+              Agregar Gasto
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Tabla de transacciones */}
