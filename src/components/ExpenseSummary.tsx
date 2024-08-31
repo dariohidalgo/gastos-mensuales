@@ -4,18 +4,20 @@ import {
   collection,
   query,
   getDocs,
+  addDoc,
   deleteDoc,
   doc,
   DocumentData,
   Timestamp,
 } from "firebase/firestore";
 
+// Interfaz para los gastos
 interface Expense {
   id: string;
   amount: number;
   type: string;
   category: string;
-  description?: string; // Descripción opcional para la categoría "Otros"
+  description?: string;
   installments: number;
   createdAt: Date;
   userName: string;
@@ -30,6 +32,33 @@ interface CreditCardExpense {
   installments: number;
 }
 
+// Función para calcular el total de la tarjeta de crédito por mes
+const calculateTotalCreditByMonth = (
+  creditCardExpenses: CreditCardExpense[],
+  selectedMonth: string,
+  selectedYear: number
+): number => {
+  const filteredCreditCardExpenses = creditCardExpenses.filter((expense) => {
+    const expenseDate = new Date(expense.date);
+    const expenseMonth = expenseDate.getMonth() + 1; // Obtener mes de 1-12
+    const expenseYear = expenseDate.getFullYear();
+
+    const monthsSinceExpense =
+      (selectedYear - expenseYear) * 12 +
+      (parseInt(selectedMonth) - expenseMonth);
+
+    return monthsSinceExpense >= 0 && monthsSinceExpense < expense.installments;
+  });
+
+  const totalCreditForMonth = filteredCreditCardExpenses.reduce(
+    (acc, expense) => acc + expense.amountInPesos / expense.installments,
+    0
+  );
+
+  return totalCreditForMonth;
+};
+
+// Componente principal
 const ExpenseSummary: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
@@ -39,16 +68,20 @@ const ExpenseSummary: React.FC = () => {
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalCredit, setTotalCredit] = useState<number>(0);
   const [totalFixed, setTotalFixed] = useState<number>(0);
-  const [selectedMonth, setSelectedMonth] = useState<string>(""); // Estado para el filtro de mes
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear] = useState<number>(new Date().getFullYear());
+
+  // Estados para los nuevos gastos
+  const [newExpenseType, setNewExpenseType] = useState<string>("Gastos");
+  const [newExpenseCategory, setNewExpenseCategory] = useState<string>("");
+  const [newExpenseAmount, setNewExpenseAmount] = useState<number>(0);
+  const [newExpenseDescription, setNewExpenseDescription] =
+    useState<string>("");
 
   useEffect(() => {
     const fetchExpenses = async () => {
       const q = query(collection(db, "expenses"));
       const querySnapshot = await getDocs(q);
-
-      let incomeTotal = 0;
-      let creditTotal = 0;
-      let fixedTotal = 0;
 
       const expensesData: Expense[] = querySnapshot.docs.map(
         (doc: DocumentData) => {
@@ -59,33 +92,15 @@ const ExpenseSummary: React.FC = () => {
             data.createdAt instanceof Timestamp
               ? data.createdAt.toDate()
               : new Date();
-
-          if (data.type === "Ingresos") {
-            incomeTotal += data.amount;
-          } else if (data.type === "Tarjeta de Credito") {
-            creditTotal += data.amount;
-          } else if (data.type === "Gastos") {
-            fixedTotal += data.amount;
-          }
-
           return {
             id: doc.id,
-            amount: data.amount,
-            type: data.type,
-            category: data.category,
-            description: data.description || "",
-            installments: data.installments,
+            ...data,
             createdAt,
-            userName: data.userName || "",
           };
         }
       );
 
       setExpenses(expensesData);
-      setTotalIncome(incomeTotal);
-      setTotalCredit(creditTotal);
-      setTotalFixed(fixedTotal);
-      setFilteredExpenses(expensesData);
     };
 
     const fetchCreditCardExpenses = async () => {
@@ -109,6 +124,93 @@ const ExpenseSummary: React.FC = () => {
     fetchCreditCardExpenses();
   }, []);
 
+  useEffect(() => {
+    if (selectedMonth) {
+      const filtered = expenses.filter((expense) => {
+        const expenseMonth = expense.createdAt.getMonth() + 1; // Mes de 1-12
+        const expenseYear = expense.createdAt.getFullYear();
+        return (
+          expenseMonth === parseInt(selectedMonth) &&
+          expenseYear === new Date().getFullYear()
+        );
+      });
+
+      const totalIncomeForMonth = filtered
+        .filter((expense) => expense.type === "Ingresos")
+        .reduce((acc, expense) => acc + expense.amount, 0);
+
+      const totalFixedForMonth = filtered
+        .filter((expense) => expense.type === "Gastos")
+        .reduce((acc, expense) => acc + expense.amount, 0);
+
+      const totalCreditForMonth = calculateTotalCreditByMonth(
+        creditCardExpenses,
+        selectedMonth,
+        selectedYear
+      );
+
+      setFilteredExpenses(filtered);
+      setTotalIncome(totalIncomeForMonth);
+      setTotalCredit(totalCreditForMonth);
+      setTotalFixed(totalFixedForMonth);
+    } else {
+      setFilteredExpenses(expenses);
+      setTotalCredit(0); // Resetear si no hay mes seleccionado
+    }
+  }, [selectedMonth, selectedYear, expenses, creditCardExpenses]);
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedMonth(e.target.value);
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newExpenseAmount <= 0 || newExpenseCategory === "") {
+      alert("Por favor ingrese un monto y una categoría válidos.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "expenses"), {
+        amount: newExpenseAmount,
+        type: newExpenseType,
+        category: newExpenseCategory,
+        description: newExpenseDescription,
+        createdAt: new Date(),
+        userName: "Usuario Actual", // Reemplazar con el nombre de usuario actual si es necesario
+      });
+
+      setNewExpenseAmount(0);
+      setNewExpenseCategory("");
+      setNewExpenseDescription("");
+
+      // Refetch expenses after adding new one
+      const q = query(collection(db, "expenses"));
+      const querySnapshot = await getDocs(q);
+      const updatedExpenses: Expense[] = querySnapshot.docs.map(
+        (doc: DocumentData) => {
+          const data = doc.data() as Omit<Expense, "id" | "createdAt"> & {
+            createdAt: Timestamp;
+          };
+          const createdAt =
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate()
+              : new Date();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt,
+          };
+        }
+      );
+      setExpenses(updatedExpenses);
+    } catch (error) {
+      console.error("Error al agregar el gasto: ", error);
+    }
+  };
+
+  // **Función para eliminar un gasto**
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm(
       "¿Estás seguro de que deseas eliminar este gasto?"
@@ -125,45 +227,6 @@ const ExpenseSummary: React.FC = () => {
       );
     } catch (error) {
       console.error("Error al eliminar el documento: ", error);
-    }
-  };
-
-  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedMonth = e.target.value;
-    setSelectedMonth(selectedMonth);
-
-    if (selectedMonth) {
-      const filtered = expenses.filter((expense) => {
-        const expenseMonth = expense.createdAt.getMonth() + 1;
-        const expenseYear = expense.createdAt.getFullYear();
-        return (
-          expenseMonth === parseInt(selectedMonth) &&
-          expenseYear === new Date().getFullYear()
-        );
-      });
-      setFilteredExpenses(filtered);
-
-      const filteredCreditCardExpenses = creditCardExpenses.filter(
-        (expense) => {
-          const expenseDate = new Date(expense.date);
-          const expenseMonth = expenseDate.getMonth() + 1;
-          const expenseYear = expenseDate.getFullYear();
-
-          return (
-            expenseMonth === parseInt(selectedMonth) &&
-            expenseYear === new Date().getFullYear()
-          );
-        }
-      );
-
-      const totalCreditForMonth = filteredCreditCardExpenses.reduce(
-        (acc, expense) => acc + expense.amountInPesos / expense.installments,
-        0
-      );
-
-      setTotalCredit(totalCreditForMonth);
-    } else {
-      setFilteredExpenses(expenses);
     }
   };
 
@@ -233,6 +296,58 @@ const ExpenseSummary: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Formulario para agregar nuevos gastos */}
+      <form onSubmit={handleAddExpense} className="mb-4">
+        <div className="row">
+          <div className="col-md-2">
+            <input
+              type="number"
+              className="form-control"
+              placeholder="Monto"
+              value={newExpenseAmount}
+              onChange={(e) => setNewExpenseAmount(parseFloat(e.target.value))}
+              required
+            />
+          </div>
+          <div className="col-md-2">
+            <select
+              className="form-select"
+              value={newExpenseType}
+              onChange={(e) => setNewExpenseType(e.target.value)}
+              required
+            >
+              <option value="Gastos">Gastos</option>
+              <option value="Ingresos">Ingresos</option>
+              <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
+            </select>
+          </div>
+          <div className="col-md-2">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Categoría"
+              value={newExpenseCategory}
+              onChange={(e) => setNewExpenseCategory(e.target.value)}
+              required
+            />
+          </div>
+          <div className="col-md-4">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Descripción (opcional)"
+              value={newExpenseDescription}
+              onChange={(e) => setNewExpenseDescription(e.target.value)}
+            />
+          </div>
+          <div className="col-md-2">
+            <button className="btn btn-primary" type="submit">
+              Agregar Gasto
+            </button>
+          </div>
+        </div>
+      </form>
 
       <h3 className="mb-3">Todas las transacciones:</h3>
       <table className="table table-striped">
