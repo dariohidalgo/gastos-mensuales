@@ -11,7 +11,7 @@ import ExpenseSummary from "./components/ExpenseSummary";
 import CreditCardExpenseForm from "./components/CreditCardExpenseForm";
 import UserInfo from "./components/UserInfo";
 import { auth } from "./firebaseConfig";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, signOut } from "firebase/auth"; // Importa signOut de Firebase Auth
 import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
 
 // Función para proteger rutas
@@ -42,6 +42,21 @@ const App: React.FC = () => {
   const handleTotalsUpdate = (totals: Record<string, number>) => {
     console.log("Totales actualizados:", totals); // Puedes usar este console.log para verificar los totales si es necesario.
   };
+
+  // Añadir un efecto para cerrar sesión al cerrar la ventana
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      signOut(auth).catch((error) =>
+        console.error("Error al desloguearse:", error)
+      );
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   return (
     <Router>
