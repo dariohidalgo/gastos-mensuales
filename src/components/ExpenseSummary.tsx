@@ -10,6 +10,8 @@ import {
   doc,
   addDoc,
 } from "firebase/firestore";
+import { auth } from "../firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
 
 // Interfaz para los gastos
 interface Expense {
@@ -73,6 +75,8 @@ const ExpenseSummary: React.FC = () => {
   const [type, setType] = useState<string>("Ingresos");
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  const [date, setDate] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string>("");
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -90,8 +94,13 @@ const ExpenseSummary: React.FC = () => {
               : new Date();
           return {
             id: doc.id,
-            ...data,
+            amount: data.amount,
+            type: data.type,
+            category: data.category,
+            description: data.description || "",
+            installments: data.installments,
             createdAt,
+            userName: data.userName || "", // Asegúrate de incluir userName
           };
         }
       );
@@ -154,6 +163,18 @@ const ExpenseSummary: React.FC = () => {
     }
   }, [selectedMonth, selectedYear, expenses, creditCardExpenses]);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUserName(user.displayName || "Usuario Actual");
+      } else {
+        setCurrentUserName("");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedMonth = e.target.value;
     setSelectedMonth(selectedMonth);
@@ -167,8 +188,8 @@ const ExpenseSummary: React.FC = () => {
         type,
         category,
         description,
-        createdAt: new Date(),
-        userName: "Usuario Actual", // Reemplaza por el nombre del usuario actual
+        createdAt: new Date(date),
+        userName: currentUserName, // Usa el nombre del usuario actual
         installments: type === "Tarjeta de Credito" ? 1 : 0,
       });
 
@@ -177,6 +198,7 @@ const ExpenseSummary: React.FC = () => {
       setType("Ingresos");
       setCategory("");
       setDescription("");
+      setDate("");
 
       // Actualizar la lista de gastos después de agregar un nuevo gasto
       const q = query(collection(db, "expenses"));
@@ -221,7 +243,65 @@ const ExpenseSummary: React.FC = () => {
   };
 
   return (
-    <div className="container mt-4 ">
+    <div className="container mt-4">
+      {/* Formulario para agregar nuevos gastos */}
+      <form onSubmit={handleAddExpense} className="row mb-4">
+        <div className="col-md-2">
+          <input
+            type="number"
+            className="form-control"
+            placeholder="Monto"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
+          <select
+            className="form-select"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
+            <option value="Ingresos">Ingresos</option>
+            <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
+            <option value="Gastos">Gastos</option>
+          </select>
+        </div>
+        <div className="col-md-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Categoría"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Descripción"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="col-md-2">
+          <input
+            type="date"
+            className="form-control"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
+          <button type="submit" className="btn btn-primary">
+            Agregar Gasto
+          </button>
+        </div>
+      </form>
+
       {/* Select para filtrar por mes */}
       <div className="row mb-4 d-flex justify-content-center">
         <div className="col-md-3 text-center">
@@ -294,57 +374,6 @@ const ExpenseSummary: React.FC = () => {
             </div>
           </div>
         </div>
-        {/* Formulario para agregar nuevos gastos */}
-        <form
-          onSubmit={handleAddExpense}
-          className="row mb-4 mt-5 justify-content-center"
-        >
-          <div className="col-md-2">
-            <input
-              type="number"
-              className="form-control"
-              placeholder="Monto"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col-md-2">
-            <select
-              className="form-select"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="Ingresos">Ingresos</option>
-              <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
-              <option value="Gastos">Gastos</option>
-            </select>
-          </div>
-          <div className="col-md-2">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Categoría"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col-md-2">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Descripción"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="col-md-2">
-            <button type="submit" className="btn btn-primary">
-              Agregar Gasto
-            </button>
-          </div>
-        </form>
       </div>
 
       {/* Tabla de transacciones */}
@@ -376,7 +405,9 @@ const ExpenseSummary: React.FC = () => {
               <td>{expense.category}</td>
               <td>{expense.description}</td>
               <td>{expense.createdAt.toLocaleDateString()}</td>
-              <td>{expense.userName}</td>
+              <td>
+                {expense.userName ? expense.userName : "Usuario Desconocido"}
+              </td>
               <td>
                 {expense.type === "Tarjeta de Credito"
                   ? expense.installments
