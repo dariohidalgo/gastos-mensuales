@@ -4,11 +4,10 @@ import {
   collection,
   query,
   getDocs,
-  addDoc,
-  deleteDoc,
-  doc,
   DocumentData,
   Timestamp,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 
 // Interfaz para los gastos
@@ -32,30 +31,31 @@ interface CreditCardExpense {
   installments: number;
 }
 
-// Función para calcular el total de la tarjeta de crédito por mes
+// **Revisión de la función de cálculo**
 const calculateTotalCreditByMonth = (
   creditCardExpenses: CreditCardExpense[],
-  selectedMonth: string,
+  selectedMonth: number,
   selectedYear: number
 ): number => {
-  const filteredCreditCardExpenses = creditCardExpenses.filter((expense) => {
+  // Filtrar gastos de tarjeta de crédito según el mes y año seleccionados
+  const filteredCreditCardExpenses = creditCardExpenses.flatMap((expense) => {
     const expenseDate = new Date(expense.date);
-    const expenseMonth = expenseDate.getMonth() + 1; // Obtener mes de 1-12
+    const expenseMonth = expenseDate.getMonth() + 1;
     const expenseYear = expenseDate.getFullYear();
 
-    const monthsSinceExpense =
-      (selectedYear - expenseYear) * 12 +
-      (parseInt(selectedMonth) - expenseMonth);
+    // Calcular las cuotas que pertenecen al mes seleccionado
+    const monthsSinceStart =
+      (selectedYear - expenseYear) * 12 + (selectedMonth - (expenseMonth + 1));
 
-    return monthsSinceExpense >= 0 && monthsSinceExpense < expense.installments;
+    if (monthsSinceStart >= 0 && monthsSinceStart < expense.installments) {
+      return expense.amountInPesos / expense.installments;
+    }
+
+    return 0;
   });
 
-  const totalCreditForMonth = filteredCreditCardExpenses.reduce(
-    (acc, expense) => acc + expense.amountInPesos / expense.installments,
-    0
-  );
-
-  return totalCreditForMonth;
+  // Sumar todos los gastos filtrados para el mes seleccionado
+  return filteredCreditCardExpenses.reduce((acc, amount) => acc + amount, 0);
 };
 
 // Componente principal
@@ -70,13 +70,6 @@ const ExpenseSummary: React.FC = () => {
   const [totalFixed, setTotalFixed] = useState<number>(0);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear] = useState<number>(new Date().getFullYear());
-
-  // Estados para los nuevos gastos
-  const [newExpenseType, setNewExpenseType] = useState<string>("Gastos");
-  const [newExpenseCategory, setNewExpenseCategory] = useState<string>("");
-  const [newExpenseAmount, setNewExpenseAmount] = useState<number>(0);
-  const [newExpenseDescription, setNewExpenseDescription] =
-    useState<string>("");
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -127,7 +120,7 @@ const ExpenseSummary: React.FC = () => {
   useEffect(() => {
     if (selectedMonth) {
       const filtered = expenses.filter((expense) => {
-        const expenseMonth = expense.createdAt.getMonth() + 1; // Mes de 1-12
+        const expenseMonth = expense.createdAt.getMonth() + 1;
         const expenseYear = expense.createdAt.getFullYear();
         return (
           expenseMonth === parseInt(selectedMonth) &&
@@ -143,9 +136,10 @@ const ExpenseSummary: React.FC = () => {
         .filter((expense) => expense.type === "Gastos")
         .reduce((acc, expense) => acc + expense.amount, 0);
 
+      // Ajuste para el cálculo del total del crédito
       const totalCreditForMonth = calculateTotalCreditByMonth(
         creditCardExpenses,
-        selectedMonth,
+        parseInt(selectedMonth),
         selectedYear
       );
 
@@ -155,65 +149,17 @@ const ExpenseSummary: React.FC = () => {
       setTotalFixed(totalFixedForMonth);
     } else {
       setFilteredExpenses(expenses);
-      setTotalCredit(0); // Resetear si no hay mes seleccionado
     }
   }, [selectedMonth, selectedYear, expenses, creditCardExpenses]);
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedMonth(e.target.value);
+    const selectedMonth = e.target.value;
+    setSelectedMonth(selectedMonth);
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (newExpenseAmount <= 0 || newExpenseCategory === "") {
-      alert("Por favor ingrese un monto y una categoría válidos.");
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, "expenses"), {
-        amount: newExpenseAmount,
-        type: newExpenseType,
-        category: newExpenseCategory,
-        description: newExpenseDescription,
-        createdAt: new Date(),
-        userName: "Usuario Actual", // Reemplazar con el nombre de usuario actual si es necesario
-      });
-
-      setNewExpenseAmount(0);
-      setNewExpenseCategory("");
-      setNewExpenseDescription("");
-
-      // Refetch expenses after adding new one
-      const q = query(collection(db, "expenses"));
-      const querySnapshot = await getDocs(q);
-      const updatedExpenses: Expense[] = querySnapshot.docs.map(
-        (doc: DocumentData) => {
-          const data = doc.data() as Omit<Expense, "id" | "createdAt"> & {
-            createdAt: Timestamp;
-          };
-          const createdAt =
-            data.createdAt instanceof Timestamp
-              ? data.createdAt.toDate()
-              : new Date();
-          return {
-            id: doc.id,
-            ...data,
-            createdAt,
-          };
-        }
-      );
-      setExpenses(updatedExpenses);
-    } catch (error) {
-      console.error("Error al agregar el gasto: ", error);
-    }
-  };
-
-  // **Función para eliminar un gasto**
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm(
-      "¿Estás seguro de que deseas eliminar este gasto?"
+      "Are you sure you want to delete this expense?"
     );
     if (!confirmDelete) return;
 
@@ -222,11 +168,8 @@ const ExpenseSummary: React.FC = () => {
       setExpenses((prevExpenses) =>
         prevExpenses.filter((expense) => expense.id !== id)
       );
-      setFilteredExpenses((prevExpenses) =>
-        prevExpenses.filter((expense) => expense.id !== id)
-      );
     } catch (error) {
-      console.error("Error al eliminar el documento: ", error);
+      console.error("Error deleting document: ", error);
     }
   };
 
@@ -296,58 +239,6 @@ const ExpenseSummary: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Formulario para agregar nuevos gastos */}
-      <form onSubmit={handleAddExpense} className="mb-4">
-        <div className="row">
-          <div className="col-md-2">
-            <input
-              type="number"
-              className="form-control"
-              placeholder="Monto"
-              value={newExpenseAmount}
-              onChange={(e) => setNewExpenseAmount(parseFloat(e.target.value))}
-              required
-            />
-          </div>
-          <div className="col-md-2">
-            <select
-              className="form-select"
-              value={newExpenseType}
-              onChange={(e) => setNewExpenseType(e.target.value)}
-              required
-            >
-              <option value="Gastos">Gastos</option>
-              <option value="Ingresos">Ingresos</option>
-              <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
-            </select>
-          </div>
-          <div className="col-md-2">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Categoría"
-              value={newExpenseCategory}
-              onChange={(e) => setNewExpenseCategory(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col-md-4">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Descripción (opcional)"
-              value={newExpenseDescription}
-              onChange={(e) => setNewExpenseDescription(e.target.value)}
-            />
-          </div>
-          <div className="col-md-2">
-            <button className="btn btn-primary" type="submit">
-              Agregar Gasto
-            </button>
-          </div>
-        </div>
-      </form>
 
       <h3 className="mb-3">Todas las transacciones:</h3>
       <table className="table table-striped">
