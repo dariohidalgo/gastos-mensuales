@@ -326,7 +326,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
         })}{" "}
         {yearFilter}
       </h3>
-      <table className="table table-striped">
+      <table className="table table-striped table-dark">
         <thead>
           <tr>
             <th>Fecha</th>

@@ -370,10 +370,10 @@ const ExpenseSummary: React.FC = () => {
       </div>
 
       {/* Lista de gastos */}
-      <div className="row">
-        <div className="col-md-12">
+      <div className="row ">
+        <div className="col-md-12 bg-dark">
           <h4>Lista de Gastos</h4>
-          <table className="table table-striped">
+          <table className="table table-striped table-dark">
             <thead>
               <tr>
                 <th>Fecha</th>
