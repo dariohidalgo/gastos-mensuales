@@ -9,6 +9,7 @@ import {
   deleteDoc,
   doc,
   addDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { auth } from "../firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
@@ -23,6 +24,7 @@ interface Expense {
   installments: number;
   createdAt: Date;
   userName: string;
+  paid?: boolean;
 }
 
 interface CreditCardExpense {
@@ -34,7 +36,14 @@ interface CreditCardExpense {
   installments: number;
 }
 
-// **Revisión de la función de cálculo**
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
 const calculateTotalCreditByMonth = (
   creditCardExpenses: CreditCardExpense[],
   selectedMonth: number,
@@ -57,7 +66,6 @@ const calculateTotalCreditByMonth = (
   return filteredCreditCardExpenses.reduce((acc, amount) => acc + amount, 0);
 };
 
-// Componente principal
 const ExpenseSummary: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
@@ -70,7 +78,6 @@ const ExpenseSummary: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear] = useState<number>(new Date().getFullYear());
 
-  // Estados para los inputs
   const [amount, setAmount] = useState<string>("");
   const [type, setType] = useState<string>("Ingresos");
   const [category, setCategory] = useState<string>("");
@@ -100,7 +107,8 @@ const ExpenseSummary: React.FC = () => {
             description: data.description || "",
             installments: data.installments,
             createdAt,
-            userName: data.userName || "", // Asegúrate de incluir userName
+            userName: data.userName || "",
+            paid: data.paid || false,
           };
         }
       );
@@ -189,18 +197,16 @@ const ExpenseSummary: React.FC = () => {
         category,
         description,
         createdAt: new Date(date),
-        userName: currentUserName, // Usa el nombre del usuario actual
+        userName: currentUserName,
         installments: type === "Tarjeta de Credito" ? 1 : 0,
       });
 
-      // Limpiar los inputs después de agregar el gasto
       setAmount("");
       setType("Ingresos");
       setCategory("");
       setDescription("");
       setDate("");
 
-      // Actualizar la lista de gastos después de agregar un nuevo gasto
       const q = query(collection(db, "expenses"));
       const querySnapshot = await getDocs(q);
       const expensesData: Expense[] = querySnapshot.docs.map(
@@ -242,6 +248,20 @@ const ExpenseSummary: React.FC = () => {
     }
   };
 
+  const handleCheckboxChange = async (id: string, paid: boolean) => {
+    try {
+      const expenseRef = doc(db, "expenses", id);
+      await updateDoc(expenseRef, { paid: !paid });
+      setExpenses((prevExpenses) =>
+        prevExpenses.map((expense) =>
+          expense.id === id ? { ...expense, paid: !paid } : expense
+        )
+      );
+    } catch (error) {
+      console.error("Error updating expense: ", error);
+    }
+  };
+
   return (
     <div className="container mt-4">
       {/* Formulario para agregar nuevos gastos */}
@@ -274,10 +294,9 @@ const ExpenseSummary: React.FC = () => {
             placeholder="Categoría"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            required
           />
         </div>
-        <div className="col-md-2">
+        <div className="col-md-3">
           <input
             type="text"
             className="form-control"
@@ -295,136 +314,110 @@ const ExpenseSummary: React.FC = () => {
             required
           />
         </div>
-        <div className="col-md-2">
-          <button type="submit" className="btn btn-primary">
-            Agregar Gasto
+        <div className="col-md-1">
+          <button type="submit" className="btn btn-primary w-100 mt-2">
+            Agregar
           </button>
         </div>
       </form>
 
-      {/* Select para filtrar por mes */}
-      <div className="row mb-4 d-flex justify-content-center">
-        <div className="col-md-3 text-center">
-          <label htmlFor="monthFilter" className="form-label">
-            Filtrar por mes:
-          </label>
-          <select
-            id="monthFilter"
-            className="form-select"
-            value={selectedMonth}
-            onChange={handleMonthChange}
-          >
-            <option value="">Todos los meses</option>
-            <option value="1">Enero</option>
-            <option value="2">Febrero</option>
-            <option value="3">Marzo</option>
-            <option value="4">Abril</option>
-            <option value="5">Mayo</option>
-            <option value="6">Junio</option>
-            <option value="7">Julio</option>
-            <option value="8">Agosto</option>
-            <option value="9">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
-          </select>
-        </div>
+      {/* Selector de mes */}
+      <div className="text-center mb-4">
+        <select
+          className="form-select w-auto d-inline-block"
+          value={selectedMonth}
+          onChange={handleMonthChange}
+        >
+          <option value="">Seleccionar mes</option>
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Resumen de gastos */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card text-center">
+      <div className="row">
+        <div className="col-md-4">
+          <div className="card text-white bg-primary mb-3">
+            <div className="card-header">Total Ingresos</div>
             <div className="card-body">
-              <h5 className="card-title">Total de Ingresos</h5>
-              <p className="card-text">
-                ${totalIncome.toLocaleString("es-ES")}
-              </p>
+              <h5 className="card-title">{formatCurrency(totalIncome)}</h5>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="card text-center">
+        <div className="col-md-4">
+          <div className="card text-white bg-danger mb-3">
+            <div className="card-header">Total Gastos Fijos y Tarjeta</div>
             <div className="card-body">
-              <h5 className="card-title">Deuda total de tarjeta de crédito</h5>
-              <p className="card-text">
-                ${totalCredit.toLocaleString("es-ES")}
-              </p>
+              <h5 className="card-title">
+                {formatCurrency(totalFixed + totalCredit)}
+              </h5>
             </div>
           </div>
         </div>
-        <div className="col-md-3">
-          <div className="card text-center">
+        <div className="col-md-4">
+          <div className="card text-white bg-success mb-3">
+            <div className="card-header">Lo Que Queda</div>
             <div className="card-body">
-              <h5 className="card-title">Gastos fijos totales</h5>
-              <p className="card-text">${totalFixed.toLocaleString("es-ES")}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-center">
-            <div className="card-body">
-              <h5 className="card-title">Monto restante</h5>
-              <p className="card-text">
-                $
-                {(totalIncome - totalCredit - totalFixed).toLocaleString(
-                  "es-ES"
-                )}
-              </p>
+              <h5 className="card-title">
+                {formatCurrency(totalIncome - (totalFixed + totalCredit))}
+              </h5>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabla de transacciones */}
-      <h3 className="mb-3">Todas las transacciones:</h3>
-      <table className="table table-striped">
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Monto</th>
-            <th>Categoría</th>
-            <th>Descripción</th>
-            <th>Fecha</th>
-            <th>Usuario</th>
-            <th>Cuotas</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredExpenses.map((expense, index) => (
-            <tr key={index}>
-              <td>
-                {expense.type === "Tarjeta de Credito"
-                  ? "Tarjeta de crédito"
-                  : expense.type === "Gastos"
-                  ? "Gasto"
-                  : "Ingreso"}
-              </td>
-              <td>${expense.amount.toLocaleString("es-ES")}</td>
-              <td>{expense.category}</td>
-              <td>{expense.description}</td>
-              <td>{expense.createdAt.toLocaleDateString()}</td>
-              <td>
-                {expense.userName ? expense.userName : "Usuario Desconocido"}
-              </td>
-              <td>
-                {expense.type === "Tarjeta de Credito"
-                  ? expense.installments
-                  : "-"}
-              </td>
-              <td>
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => handleDelete(expense.id)}
-                >
-                  Eliminar
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Lista de gastos */}
+      <div className="row">
+        <div className="col-md-12">
+          <h4>Lista de Gastos</h4>
+          <table className="table table-striped">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Monto</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Pagado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredExpenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td>{expense.createdAt.toLocaleDateString()}</td>
+                  <td>{expense.description}</td>
+                  <td>{formatCurrency(expense.amount)}</td>
+                  <td>{expense.type}</td>
+                  <td>{expense.category}</td>
+                  <td>
+                    {expense.type !== "Ingresos" && (
+                      <input
+                        type="checkbox"
+                        checked={!!expense.paid}
+                        onChange={() =>
+                          handleCheckboxChange(expense.id, !!expense.paid)
+                        }
+                      />
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDelete(expense.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
