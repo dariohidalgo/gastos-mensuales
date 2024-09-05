@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,6 +14,7 @@ import UserInfo from "./components/UserInfo";
 import { auth } from "./firebaseConfig";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
+import "./App.css";
 
 // Función para proteger rutas
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({
