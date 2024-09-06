@@ -14,7 +14,6 @@ import {
 import { auth } from "../firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 
-// Interfaz para los gastos
 interface Expense {
   id: string;
   amount: number;
@@ -75,15 +74,20 @@ const ExpenseSummary: React.FC = () => {
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalCredit, setTotalCredit] = useState<number>(0);
   const [totalFixed, setTotalFixed] = useState<number>(0);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    (new Date().getMonth() + 1).toString()
+  );
   const [selectedYear] = useState<number>(new Date().getFullYear());
 
+  // Estados para los inputs
   const [amount, setAmount] = useState<string>("");
   const [type, setType] = useState<string>("Ingresos");
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("");
+
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -232,6 +236,28 @@ const ExpenseSummary: React.FC = () => {
     }
   };
 
+  const handleEditExpense = async (id: string) => {
+    setEditingExpenseId(id);
+  };
+
+  const handleSaveExpense = async (id: string, newAmount: string) => {
+    try {
+      const expenseRef = doc(db, "expenses", id);
+      await updateDoc(expenseRef, { amount: parseFloat(newAmount) });
+
+      setExpenses((prevExpenses) =>
+        prevExpenses.map((expense) =>
+          expense.id === id
+            ? { ...expense, amount: parseFloat(newAmount) }
+            : expense
+        )
+      );
+      setEditingExpenseId(null);
+    } catch (error) {
+      console.error("Error updating expense: ", error);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this expense?"
@@ -338,7 +364,7 @@ const ExpenseSummary: React.FC = () => {
       </div>
 
       {/* Resumen de gastos */}
-      <div className="row">
+      <div className="row text-center">
         <div className="col-md-4">
           <div className="card text-white bg-primary mb-3">
             <div className="card-header">Total Ingresos</div>
@@ -349,16 +375,22 @@ const ExpenseSummary: React.FC = () => {
         </div>
         <div className="col-md-4">
           <div className="card text-white bg-danger mb-3">
-            <div className="card-header">Total Gastos Fijos y Tarjeta</div>
+            <div className="card-header">Total Gastos Fijos</div>
             <div className="card-body">
-              <h5 className="card-title">
-                {formatCurrency(totalFixed + totalCredit)}
-              </h5>
+              <h5 className="card-title">{formatCurrency(totalFixed)}</h5>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card text-white bg-success mb-3">
+          <div className="card text-white bg-warning mb-3">
+            <div className="card-header">Total Tarjeta de Crédito</div>
+            <div className="card-body">
+              <h5 className="card-title">{formatCurrency(totalCredit)}</h5>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4 mx-auto">
+          <div className="card text-white bg-success mb-3 ">
             <div className="card-header">Lo Que Queda</div>
             <div className="card-body">
               <h5 className="card-title">
@@ -390,7 +422,17 @@ const ExpenseSummary: React.FC = () => {
                 <tr key={expense.id}>
                   <td>{expense.createdAt.toLocaleDateString()}</td>
                   <td>{expense.description}</td>
-                  <td>{formatCurrency(expense.amount)}</td>
+                  <td>
+                    {editingExpenseId === expense.id ? (
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                      />
+                    ) : (
+                      formatCurrency(expense.amount)
+                    )}
+                  </td>
                   <td>{expense.type}</td>
                   <td>{expense.category}</td>
                   <td>
@@ -405,8 +447,23 @@ const ExpenseSummary: React.FC = () => {
                     )}
                   </td>
                   <td>
+                    {editingExpenseId === expense.id ? (
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => handleSaveExpense(expense.id, amount)}
+                      >
+                        Guardar
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-warning btn-sm"
+                        onClick={() => handleEditExpense(expense.id)}
+                      >
+                        Editar
+                      </button>
+                    )}
                     <button
-                      className="btn btn-danger btn-sm"
+                      className="btn btn-danger btn-sm ms-2"
                       onClick={() => handleDelete(expense.id)}
                     >
                       Eliminar
