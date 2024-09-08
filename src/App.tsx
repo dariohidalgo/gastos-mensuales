@@ -10,6 +10,7 @@ import Login from "./components/login";
 import ExpenseForm from "./components/expenseForm";
 import ExpenseSummary from "./components/ExpenseSummary";
 import CreditCardExpenseForm from "./components/CreditCardExpenseForm";
+import GastosGrafico from "./components/GastosGrafico";
 import UserInfo from "./components/UserInfo";
 import { auth } from "./firebaseConfig";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
@@ -73,6 +74,7 @@ const App: React.FC = () => {
         </h1>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/gastos-grafico" element={<GastosGrafico />} />
           <Route
             path="/expenses"
             element={

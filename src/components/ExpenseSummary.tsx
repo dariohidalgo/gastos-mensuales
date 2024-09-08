@@ -81,7 +81,7 @@ const ExpenseSummary: React.FC = () => {
 
   // Estados para los inputs
   const [amount, setAmount] = useState<string>("");
-  const [type, setType] = useState<string>("Ingresos");
+  const [type, setType] = useState<string>("Gastos"); // Inicializar con "Gastos" preseleccionado
   const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [date, setDate] = useState<string>("");
@@ -202,11 +202,11 @@ const ExpenseSummary: React.FC = () => {
         description,
         createdAt: new Date(date),
         userName: currentUserName,
-        installments: type === "Tarjeta de Credito" ? 1 : 0,
+        installments: 0,
       });
 
       setAmount("");
-      setType("Ingresos");
+      setType("Gastos");
       setCategory("");
       setDescription("");
       setDate("");
@@ -260,7 +260,7 @@ const ExpenseSummary: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm(
-      "Are you sure you want to delete this expense?"
+      "¿Estás seguro de que deseas eliminar este gasto?"
     );
     if (!confirmDelete) return;
 
@@ -270,7 +270,7 @@ const ExpenseSummary: React.FC = () => {
         prevExpenses.filter((expense) => expense.id !== id)
       );
     } catch (error) {
-      console.error("Error deleting document: ", error);
+      console.error("Error al eliminar el documento: ", error);
     }
   };
 
@@ -284,14 +284,14 @@ const ExpenseSummary: React.FC = () => {
         )
       );
     } catch (error) {
-      console.error("Error updating expense: ", error);
+      console.error("Error al actualizar el estado de pago: ", error);
     }
   };
 
   return (
     <div className="container mt-4">
       {/* Formulario para agregar nuevos gastos */}
-      <form onSubmit={handleAddExpense} className="row mb-4">
+      <form onSubmit={handleAddExpense} className="row mb-4 align-items-center">
         <div className="col-md-2">
           <input
             type="number"
@@ -308,9 +308,8 @@ const ExpenseSummary: React.FC = () => {
             value={type}
             onChange={(e) => setType(e.target.value)}
           >
-            <option value="Ingresos">Ingresos</option>
-            <option value="Tarjeta de Credito">Tarjeta de Crédito</option>
             <option value="Gastos">Gastos</option>
+            <option value="Ingresos">Ingresos</option>
           </select>
         </div>
         <div className="col-md-2">
@@ -341,7 +340,7 @@ const ExpenseSummary: React.FC = () => {
           />
         </div>
         <div className="col-md-1">
-          <button type="submit" className="btn btn-primary w-100 mt-2">
+          <button type="submit" className="btn btn-primary w-100 ">
             Agregar
           </button>
         </div>
@@ -365,7 +364,7 @@ const ExpenseSummary: React.FC = () => {
 
       {/* Resumen de gastos */}
       <div className="row text-center">
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card text-white bg-primary mb-3">
             <div className="card-header">Total Ingresos</div>
             <div className="card-body">
@@ -373,7 +372,7 @@ const ExpenseSummary: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card text-white bg-danger mb-3">
             <div className="card-header">Total Gastos Fijos</div>
             <div className="card-body">
@@ -381,7 +380,7 @@ const ExpenseSummary: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="col-md-4">
+        <div className="col-md-3">
           <div className="card text-white bg-warning mb-3">
             <div className="card-header">Total Tarjeta de Crédito</div>
             <div className="card-body">
@@ -389,12 +388,12 @@ const ExpenseSummary: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="col-md-4 mx-auto">
-          <div className="card text-white bg-success mb-3 ">
+        <div className="col-md-3 mx-auto">
+          <div className="card text-white bg-success mb-3">
             <div className="card-header">Lo Que Queda</div>
             <div className="card-body">
               <h5 className="card-title">
-                {formatCurrency(totalIncome - (totalFixed + totalCredit))}
+                {formatCurrency(totalIncome - totalFixed - totalCredit)}
               </h5>
             </div>
           </div>
@@ -404,7 +403,7 @@ const ExpenseSummary: React.FC = () => {
       {/* Lista de gastos */}
       <div className="row ">
         <div className="col-md-12 bg-dark">
-          <h4>Lista de Gastos</h4>
+          <h4 className="text-center my-4">Lista de Gastos</h4>
           <table className="table table-striped table-dark">
             <thead>
               <tr>
