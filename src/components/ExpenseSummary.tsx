@@ -289,202 +289,199 @@ const ExpenseSummary: React.FC = () => {
   };
 
   return (
-    <div className="container mt-4 ">
+    <div className="container mt-4">
       {/* Formulario para agregar nuevos gastos */}
-      <div className="container mt-4">
-        {/* Formulario para agregar nuevos gastos */}
-        <form
-          onSubmit={handleAddExpense}
-          className="row mb-4 align-items-center mt-md-3"
-        >
-          <div className="col-12 col-md-2 mb-3 mb-md-0">
-            <input
-              type="number"
-              className="form-control"
-              placeholder="Monto"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col-12 col-md-2 mb-3 mb-md-0">
-            <select
-              className="form-select"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="Gastos">Gastos</option>
-              <option value="Ingresos">Ingresos</option>
-            </select>
-          </div>
-          <div className="col-12 col-md-2 mb-3 mb-md-0">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Categoría"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            />
-          </div>
-          <div className="col-12 col-md-3 mb-3 mb-md-0">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Descripción"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="col-12 col-md-2 mb-3 mb-md-0">
-            <input
-              type="date"
-              className="form-control"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col-12 col-md-1 mb-3 mb-md-0">
-            <button type="submit" className="btn btn-primary w-100">
-              Agregar
-            </button>
-          </div>
-        </form>
-
-        {/* Selector de mes */}
-        <div className="text-center mb-4">
+      <form
+        onSubmit={handleAddExpense}
+        className="row mb-4 align-items-center mt-md-3"
+      >
+        <div className="col-12 col-md-2 mb-3 mb-md-0">
+          <input
+            type="number"
+            className="form-control"
+            placeholder="Monto"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-12 col-md-2 mb-3 mb-md-0">
           <select
-            className="form-select w-auto d-inline-block"
-            value={selectedMonth}
-            onChange={handleMonthChange}
+            className="form-select"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
           >
-            <option value="">Seleccionar mes</option>
-            {Array.from({ length: 12 }, (_, i) => (
-              <option key={i + 1} value={i + 1}>
-                {new Date(0, i).toLocaleString("default", { month: "long" })}
-              </option>
-            ))}
+            <option value="Gastos">Gastos</option>
+            <option value="Ingresos">Ingresos</option>
           </select>
         </div>
+        <div className="col-12 col-md-2 mb-3 mb-md-0">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Categoría"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          />
+        </div>
+        <div className="col-12 col-md-3 mb-3 mb-md-0">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Descripción"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="col-12 col-md-2 mb-3 mb-md-0">
+          <input
+            type="date"
+            className="form-control"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-12 col-md-1 mb-3 mb-md-0">
+          <button type="submit" className="btn btn-primary w-100">
+            Agregar
+          </button>
+        </div>
+      </form>
 
-        {/* Resumen de gastos */}
-        <div className="row text-center">
-          <div className="col-md-3">
-            <div className="card text-white bg-primary mb-3">
-              <div className="card-header">Total Ingresos</div>
-              <div className="card-body">
-                <h5 className="card-title">{formatCurrency(totalIncome)}</h5>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-white bg-danger mb-3">
-              <div className="card-header">Total Gastos Fijos</div>
-              <div className="card-body">
-                <h5 className="card-title">{formatCurrency(totalFixed)}</h5>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card text-white bg-warning mb-3">
-              <div className="card-header">Total Tarjeta de Crédito</div>
-              <div className="card-body">
-                <h5 className="card-title">{formatCurrency(totalCredit)}</h5>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3 mx-auto">
-            <div className="card text-white bg-success mb-3">
-              <div className="card-header">Lo Que Queda</div>
-              <div className="card-body">
-                <h5 className="card-title">
-                  {formatCurrency(totalIncome - totalFixed - totalCredit)}
-                </h5>
-              </div>
+      {/* Selector de mes */}
+      <div className="text-center mb-4">
+        <select
+          className="form-select w-auto d-inline-block"
+          value={selectedMonth}
+          onChange={handleMonthChange}
+        >
+          <option value="">Seleccionar mes</option>
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Resumen de gastos */}
+      <div className="row text-center">
+        <div className="col-md-3">
+          <div className="card text-white bg-primary mb-3">
+            <div className="card-header">Total Ingresos</div>
+            <div className="card-body">
+              <h5 className="card-title">{formatCurrency(totalIncome)}</h5>
             </div>
           </div>
         </div>
-
-        {/* Lista de gastos */}
-        <div className="row">
-          <div className="col-md-12 bg-dark">
-            <h4 className="text-center my-4">Lista de Gastos</h4>
-            <div className="table-responsive">
-              <table className="table table-striped table-dark">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Descripción</th>
-                    <th>Monto</th>
-                    <th>Tipo</th>
-                    <th>Categoría</th>
-                    <th>Pagado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredExpenses.map((expense) => (
-                    <tr key={expense.id}>
-                      <td className="d-none d-md-table-cell">
-                        {expense.createdAt.toLocaleDateString()}
-                      </td>
-                      <td className="d-none d-md-table-cell">
-                        {expense.description}
-                      </td>
-                      <td>
-                        {editingExpenseId === expense.id ? (
-                          <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                          />
-                        ) : (
-                          formatCurrency(expense.amount)
-                        )}
-                      </td>
-                      <td>{expense.type}</td>
-                      <td>{expense.category}</td>
-                      <td>
-                        {expense.type !== "Ingresos" && (
-                          <input
-                            type="checkbox"
-                            checked={!!expense.paid}
-                            onChange={() =>
-                              handleCheckboxChange(expense.id, !!expense.paid)
-                            }
-                          />
-                        )}
-                      </td>
-                      <td className="d-flex justify-content-center">
-                        {editingExpenseId === expense.id ? (
-                          <button
-                            className="btn btn-success btn-sm"
-                            onClick={() =>
-                              handleSaveExpense(expense.id, amount)
-                            }
-                          >
-                            Guardar
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn-warning btn-sm col-md-2 mb-3 mb-md-0 "
-                            onClick={() => handleEditExpense(expense.id)}
-                          >
-                            Editar
-                          </button>
-                        )}
-                        <button
-                          className="btn btn-danger btn-sm ms-2 col-md-2 mb-3 mb-md-0 "
-                          onClick={() => handleDelete(expense.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="col-md-3">
+          <div className="card text-white bg-danger mb-3">
+            <div className="card-header">Total Gastos Fijos</div>
+            <div className="card-body">
+              <h5 className="card-title">{formatCurrency(totalFixed)}</h5>
             </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card text-white bg-warning mb-3">
+            <div className="card-header">Total Tarjeta de Crédito</div>
+            <div className="card-body">
+              <h5 className="card-title">{formatCurrency(totalCredit)}</h5>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3 mx-auto">
+          <div className="card text-white bg-success mb-3">
+            <div className="card-header">Lo Que Queda</div>
+            <div className="card-body">
+              <h5 className="card-title">
+                {formatCurrency(totalIncome - totalFixed - totalCredit)}
+              </h5>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de gastos */}
+      <div className="row">
+        <div className="col-md-12 bg-dark">
+          <h4 className="text-center my-4">Lista de Gastos</h4>
+          <div className="table-responsive">
+            <table className="table table-striped table-dark">
+              <thead>
+                <tr>
+                  <th className="d-none d-md-table-cell">Fecha</th>{" "}
+                  {/* Ocultar en móviles */}
+                  <th className="d-none d-md-table-cell">Descripción</th>{" "}
+                  {/* Ocultar en móviles */}
+                  <th>Monto</th>
+                  <th>Tipo</th>
+                  <th>Categoría</th>
+                  <th>Pagado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredExpenses.map((expense) => (
+                  <tr key={expense.id}>
+                    <td className="d-none d-md-table-cell">
+                      {expense.createdAt.toLocaleDateString()}
+                    </td>
+                    <td className="d-none d-md-table-cell">
+                      {expense.description}
+                    </td>
+                    <td>
+                      {editingExpenseId === expense.id ? (
+                        <input
+                          type="number"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                        />
+                      ) : (
+                        formatCurrency(expense.amount)
+                      )}
+                    </td>
+                    <td>{expense.type}</td>
+                    <td>{expense.category}</td>
+                    <td>
+                      {expense.type !== "Ingresos" && (
+                        <input
+                          type="checkbox"
+                          checked={!!expense.paid}
+                          onChange={() =>
+                            handleCheckboxChange(expense.id, !!expense.paid)
+                          }
+                        />
+                      )}
+                    </td>
+                    <td className="d-flex justify-content-center">
+                      {editingExpenseId === expense.id ? (
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => handleSaveExpense(expense.id, amount)}
+                        >
+                          Guardar
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-warning btn-sm col-md-2 mb-3 mb-md-0"
+                          onClick={() => handleEditExpense(expense.id)}
+                        >
+                          Editar
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-danger btn-sm ms-2 col-md-2 mb-3 mb-md-0"
+                        onClick={() => handleDelete(expense.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
