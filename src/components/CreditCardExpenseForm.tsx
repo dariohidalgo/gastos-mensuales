@@ -320,13 +320,15 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
       </div>
 
       {/* Tabla de gastos */}
-      <h3 className="mb-3">
-        Gastos de Tarjeta de Crédito -{" "}
-        {new Date(0, monthFilter - 1).toLocaleString("es-ES", {
-          month: "long",
-        })}{" "}
-        {yearFilter}
-      </h3>
+      <div className="d-flex justify-content-center">
+        <h3 className="mb-3 ">
+          Gastos de Tarjeta de Crédito -{" "}
+          {new Date(0, monthFilter - 1).toLocaleString("es-ES", {
+            month: "long",
+          })}{" "}
+          {yearFilter}
+        </h3>
+      </div>
       <table className="table table-striped table-dark">
         <thead>
           <tr>
@@ -374,7 +376,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
       </table>
 
       {/* Mostrar total para el mes seleccionado */}
-      <div className="d-flex justify-content-end">
+      <div className="d-flex justify-content-center">
         <h4>
           Total a pagar en{" "}
           {new Date(0, monthFilter - 1).toLocaleString("es-ES", {
