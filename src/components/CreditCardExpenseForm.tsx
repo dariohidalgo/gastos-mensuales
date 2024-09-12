@@ -21,6 +21,7 @@ interface CreditCardExpense {
   amountInPesos: number;
   amountInDollars?: number;
   installments: number;
+  remainingInstallments?: number;
 }
 
 const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
@@ -116,7 +117,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
 
         const monthsSinceStart =
           (selectedYear - expenseYear) * 12 +
-          (selectedMonthIndex - (expenseMonth + 1));
+          (selectedMonthIndex - expenseMonth);
 
         if (monthsSinceStart >= 0 && monthsSinceStart < expense.installments) {
           const remainingInstallments = expense.installments - monthsSinceStart;
@@ -345,13 +346,19 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
               ? expense.amountInDollars / expense.installments
               : 0;
 
+            const remainingInstallmentsText =
+              expense.remainingInstallments === 1
+                ? "1 última cuota"
+                : expense.remainingInstallments ?? expense.installments;
+
             return (
               <tr key={expense.id}>
                 <td>{expense.date}</td>
                 <td>{expense.transactionDetail}</td>
                 <td>${amountPerInstallment.toFixed(2)}</td>
                 <td>${amountPerInstallmentDollar.toFixed(2)}</td>
-                <td>{expense.installments}</td>
+                <td>{remainingInstallmentsText}</td>{" "}
+                {/* Mostrar "última cuota" si es la última */}
                 <td>
                   <button
                     className="btn btn-danger btn-sm"

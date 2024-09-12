@@ -465,14 +465,14 @@ const ExpenseSummary: React.FC = () => {
                         </button>
                       ) : (
                         <button
-                          className="btn btn-warning btn-sm col-md-2 mb-3 mb-md-0"
+                          className="btn btn-warning btn-sm col-md-4 mb-3 mb-md-0"
                           onClick={() => handleEditExpense(expense.id)}
                         >
                           Editar
                         </button>
                       )}
                       <button
-                        className="btn btn-danger btn-sm ms-2 col-md-2 mb-3 mb-md-0"
+                        className="btn btn-danger btn-sm ms-2 col-md-4 mb-3 mb-md-0"
                         onClick={() => handleDelete(expense.id)}
                       >
                         Eliminar
