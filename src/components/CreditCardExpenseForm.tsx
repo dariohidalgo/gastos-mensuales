@@ -115,9 +115,10 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
           return [];
         }
 
+        // Ajuste para empezar a reflejar los gastos en el mes siguiente
         const monthsSinceStart =
           (selectedYear - expenseYear) * 12 +
-          (selectedMonthIndex - expenseMonth);
+          (selectedMonthIndex - expenseMonth - 1); // Restamos 1 para empezar en el mes siguiente
 
         if (monthsSinceStart >= 0 && monthsSinceStart < expense.installments) {
           const remainingInstallments = expense.installments - monthsSinceStart;
@@ -141,10 +142,10 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
       const amountPerInstallment = expense.amountInPesos / expense.installments;
 
       for (let i = 0; i < expense.installments; i++) {
-        const currentInstallmentMonth = (expenseDate.getMonth() + i + 1) % 12;
+        const currentInstallmentMonth = (expenseDate.getMonth() + i + 2) % 12; // Añadimos 2 para que empiece en el mes siguiente
         const currentInstallmentYear =
           expenseDate.getFullYear() +
-          Math.floor((expenseDate.getMonth() + i + 1) / 12);
+          Math.floor((expenseDate.getMonth() + i + 2) / 12);
 
         const monthYear = `${currentInstallmentYear}-${(
           currentInstallmentMonth || 12
