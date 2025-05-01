@@ -177,7 +177,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
     });
 
     onTotalsUpdate(monthlyTotals);
-  }, [monthFilter, yearFilter, expenses]);
+  }, [monthFilter, yearFilter, expenses, onTotalsUpdate]);
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
