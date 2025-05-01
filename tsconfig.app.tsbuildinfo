@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/firebaseconfig.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/creditcardexpenseform.tsx","./src/components/creditcardexpenses.tsx","./src/components/expensesummary.tsx","./src/components/gastosgrafico.tsx","./src/components/userinfo.tsx","./src/components/expenseform.tsx","./src/components/login.tsx"],"version":"5.8.3"}

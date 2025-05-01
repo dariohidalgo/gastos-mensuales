@@ -99,6 +99,22 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
       console.error("Error al agregar el gasto: ", error);
     }
   };
+  const [loadingSync, setLoadingSync] = useState(false);
+
+  const handleSync = async () => {
+    setLoadingSync(true);
+    try {
+      const res = await fetch(
+        "https://us-central1-gastos-66dbe.cloudfunctions.net/syncCreditCardEmailsHTTP"
+      );
+      const msg = await res.text();
+      alert(msg);
+    } catch (error) {
+      alert("Error al sincronizar: " + error);
+    } finally {
+      setLoadingSync(false);
+    }
+  };
 
   useEffect(() => {
     if (monthFilter && yearFilter) {
@@ -274,6 +290,28 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = ({
             Enviar
           </button>
         </div>
+        <div className="col-md-2 d-flex justify-content-center mt-3">
+          <button
+            className="btn btn-warning btn-lg"
+            type="button"
+            onClick={handleSync}
+            disabled={loadingSync}
+          >
+            {loadingSync ? (
+              <>
+                <span
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+                Sincronizando...
+              </>
+            ) : (
+              "Forzar desde Gmail"
+            )}
+          </button>
+        </div>
+
         <div className="col-md-2 d-flex justify-content-center mt-3">
           <button
             className="btn btn-primary btn-lg"
