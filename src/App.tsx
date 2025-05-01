@@ -42,9 +42,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({
 
 // Componente principal de la aplicación
 const App: React.FC = () => {
-  const handleTotalsUpdate = (totals: Record<string, number>) => {
-    console.log("Totales actualizados:", totals);
-  };
+  const handleTotalsUpdate = () => {};
 
   useEffect(() => {
     const handleBeforeUnload = () => {
