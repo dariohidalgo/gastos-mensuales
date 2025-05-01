@@ -43,11 +43,13 @@ const admin = __importStar(require("firebase-admin"));
 const googleapis_1 = require("googleapis");
 const dayjs_1 = __importDefault(require("dayjs"));
 require("dayjs/locale/es");
+const dotenv = __importStar(require("dotenv"));
+dotenv.config();
 admin.initializeApp();
 const db = admin.firestore();
-const oAuth2Client = new googleapis_1.google.auth.OAuth2("1092119604551-f3h7tr9jcbc4rb4hbj64db8ksvfim05f.apps.googleusercontent.com", "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", "https://gastos-66dbe.firebaseapp.com/__/auth/handler");
+const oAuth2Client = new googleapis_1.google.auth.OAuth2(process.env.CLIENT_ID, process.env.CLIENT_SECRET, process.env.REDIRECT_URI);
 oAuth2Client.setCredentials({
-    refresh_token: "1//0hBAgD_OS5FlfCgYIARAAGBESNwF-L9IrEwezRxtEMi4yzbcOU-uqQmPeDuAaLp6w8It7x6uoBSw-oBHESo34r5-_c3J7Am2JH0k",
+    refresh_token: process.env.REFRESH_TOKEN,
 });
 const gmail = googleapis_1.google.gmail({ version: "v1", auth: oAuth2Client });
 const processGmailMovements = async () => {
