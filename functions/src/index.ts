@@ -1,8 +1,11 @@
-// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { google } from "googleapis";
+import { gmail_v1 } from "googleapis";
+import { decode as quotedPrintableDecode } from "quoted-printable";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+dayjs.extend(customParseFormat);
 import "dayjs/locale/es";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -15,84 +18,122 @@ const oAuth2Client = new google.auth.OAuth2(
   process.env.CLIENT_SECRET,
   process.env.REDIRECT_URI
 );
-oAuth2Client.setCredentials({
-  refresh_token: process.env.REFRESH_TOKEN,
-});
-
+oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
 
+function findBodyData(
+  parts: gmail_v1.Schema$MessagePart[] | undefined,
+  mimeType: string
+): string | null {
+  if (!parts) return null;
+  for (const part of parts) {
+    if (part.mimeType === mimeType && part.body?.data) {
+      return part.body.data;
+    }
+    if (part.parts) {
+      const found = findBodyData(part.parts, mimeType);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function decodeEmail(rawData: string): string {
+  const base64 = rawData.replace(/-/g, "+").replace(/_/g, "/");
+  const buffer = Buffer.from(base64, "base64");
+  return quotedPrintableDecode(buffer.toString("utf8"));
+}
+
+function extractCommerceAndDate(text: string) {
+  const regex = /el día\s+(\d{2}\/\d{2}\/\d{4})[^.]*?en\s+([A-Z0-9*]+)/i;
+  const match = text.match(regex);
+  if (match) {
+    const [, dateStr, transactionDetail] = match;
+    return { dateStr, transactionDetail };
+  }
+  console.warn("⚠️ No se pudo extraer fecha y comercio.");
+  return { dateStr: null, transactionDetail: null };
+}
+
+function extractAmounts(text: string) {
+  const regex = /consumo de \$\s*([\d.]+,\d{2})(?:\s+en\s+(\d+)\s+cuotas?)?/i;
+  const match = text.match(regex);
+  if (match) {
+    const raw = match[1].replace(/\./g, "").replace(",", ".");
+    const amountInPesos = parseFloat(raw);
+    const installments = match[2] ? parseInt(match[2], 10) : 1;
+    return { amountInPesos, installments };
+  }
+  console.warn("⚠️ No se detectó un importe válido.");
+  return { amountInPesos: 0, installments: 1 };
+}
+
 const processGmailMovements = async () => {
-  const query = `from:alertas@infomistarjetas.com subject:'Notificación de Movimiento' newer_than:1d`;
+  const query =
+    'from:alertas@infomistarjetas.com subject:"Novedades de tus transacciones" newer_than:1d';
+  const res = await gmail.users.messages.list({ userId: "me", q: query });
+  const messages = res.data?.messages || [];
 
-  try {
-    const res = await gmail.users.messages.list({ userId: "me", q: query });
-    const messages = res.data?.messages || [];
 
-    console.log(`🔍 Mensajes encontrados: ${messages.length}`);
 
-    if (messages.length === 0) {
-      console.log("⚠️ No se encontraron mensajes con el filtro aplicado.");
-      return;
+  for (const msg of messages) {
+
+    const msgData = await gmail.users.messages.get({
+      userId: "me",
+      id: msg.id!,
+      format: "full",
+    });
+    const payload = msgData.data.payload;
+
+    let htmlRaw = "";
+    if (payload?.parts) {
+      const htmlEncoded = findBodyData(payload.parts, "text/html");
+      if (htmlEncoded) htmlRaw = decodeEmail(htmlEncoded);
+    } else if (payload?.body?.data) {
+      htmlRaw = decodeEmail(payload.body.data);
+    }
+    const plainText = htmlRaw
+      .replace(/&nbsp;/gi, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+   
+    const { dateStr, transactionDetail } = extractCommerceAndDate(plainText);
+    const { amountInPesos, installments } = extractAmounts(plainText);
+
+    if (!transactionDetail || !amountInPesos) {
+      console.warn("⚠️ Datos incompletos. Se omite el registro.");
+      continue;
     }
 
-    for (const msg of messages) {
-      const msgData = await gmail.users.messages.get({
-        userId: "me",
-        id: msg.id ?? "",
-        format: "full",
-      });
+    const formattedDate = dateStr
+      ? dayjs(dateStr, "DD/MM/YYYY").format("YYYY-MM-DD")
+      : dayjs(parseInt(msgData.data.internalDate || "0")).format("YYYY-MM-DD");
 
-      const bodyEncoded = msgData.data.payload?.parts?.[0]?.body?.data || "";
-      const body = Buffer.from(bodyEncoded, "base64").toString("utf-8");
+    const dup = await db
+      .collection("creditCardExpenses")
+      .where("date", "==", formattedDate)
+      .where("transactionDetail", "==", transactionDetail)
+      .where("amountInPesos", "==", amountInPesos)
+      .get();
 
-      const matchPesos = body.match(/consumo de \$\s?([\d.,]+)/i);
-      const matchDolares = body.match(/consumo de USD\s?([\d.,]+)/i);
-      const matchCuotas = body.match(/en (\d+) cuotas?/i);
-      const matchFecha = body.match(/el d[ií]a (\d{2}\/\d{2}\/\d{4})/i);
-      const matchComercio = body.match(/en ([A-ZÁÉÍÓÚÑ0-9.*\- ]+)/i);
-
-      const amountInPesos = matchPesos
-        ? parseFloat(matchPesos[1].replace(/\./g, "").replace(",", "."))
-        : 0;
-      const amountInDollars = matchDolares
-        ? parseFloat(matchDolares[1].replace(/\./g, "").replace(",", "."))
-        : 0;
-      const installments = matchCuotas ? parseInt(matchCuotas[1]) : 1;
-      const dateStr = matchFecha ? matchFecha[1] : null;
-      const transactionDetail = matchComercio ? matchComercio[1].trim() : "";
-
-      const msgDate = dayjs(dateStr, "DD/MM/YYYY");
-      if (!msgDate.isValid()) {
-        console.log("Email omitido por fecha inválida:", dateStr);
-        continue;
-      }
-
-      const snapshot = await db
-        .collection("creditCardExpenses")
-        .where("date", "==", msgDate.format("YYYY-MM-DD"))
-        .where("transactionDetail", "==", transactionDetail)
-        .where("amountInPesos", "==", amountInPesos)
-        .limit(1)
-        .get();
-
-      if (!snapshot.empty) {
-        console.log("Movimiento ya existe, no se duplica");
-        continue;
-      }
-
+    if (dup.empty) {
       await db.collection("creditCardExpenses").add({
-        date: msgDate.format("YYYY-MM-DD"),
+        date: formattedDate,
         transactionDetail,
         amountInPesos,
-        amountInDollars,
+        amountInDollars: 0,
         installments,
       });
-
-      console.log("✅ Gasto agregado:", transactionDetail, amountInPesos);
+   
+    
+    } else {
+      console.log(`🔁 Duplicado: ${transactionDetail} - ya existe.`);
     }
-  } catch (err) {
-    console.error("❌ Error al sincronizar mails:", err);
   }
+
+
 };
 
 export const syncCreditCardEmails = functions.pubsub
@@ -103,20 +144,16 @@ export const syncCreditCardEmails = functions.pubsub
 export const syncCreditCardEmailsHTTP = functions.https.onRequest(
   async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
     }
-
     try {
       await processGmailMovements();
-      res.status(200).send("✅ Sincronización completada.");
-    } catch (error) {
-      console.error("❌ Error en sincronización HTTP:", error);
-      res.status(500).send("❌ Error al sincronizar.");
+      res.status(200).send("✅ Sincronizado");
+    } catch (e) {
+      console.error("❌ Error al sincronizar:", e);
+      res.status(500).send(`❌ ${e}`);
     }
   }
 );

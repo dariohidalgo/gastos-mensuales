@@ -1,0 +1,26 @@
+.light-mode table {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  border: 1px solid #333;
+}
+
+.dark-mode table {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  border: 1px solid #ddd;
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+  table {
+    width: 100%;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  table {
+    font-size: 12px;
+    border: none;
+  }
+}

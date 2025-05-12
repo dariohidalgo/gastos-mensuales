@@ -20,7 +20,7 @@ const UserInfo: React.FC = () => {
       await signOut(auth);
       navigate("/"); // Redirige al login después de cerrar sesión
     } catch (error) {
-      console.error("Error al cerrar sesión: ", error);
+
     }
   };
 

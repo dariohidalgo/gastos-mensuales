@@ -13,8 +13,7 @@ const authUrl = oAuth2Client.generateAuthUrl({
   scope: ["https://www.googleapis.com/auth/gmail.readonly"],
 });
 
-console.log("Visita esta URL para autorizar la app:");
-console.log(authUrl);
+
 
 // Leer el código desde la terminal
 const rl = readline.createInterface({
@@ -28,7 +27,6 @@ rl.question("Pegá aquí el código que obtuviste de la URL: ", (code) => {
     if (err) {
       return console.error("Error obteniendo el token:", err);
     }
-    console.log("🎉 Refresh Token generado:");
-    console.log(token.refresh_token);
+ 
   });
 });

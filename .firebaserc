@@ -1,7 +1,6 @@
 {
   "projects": {
-    "default": "gastos-mensuales-22619",
-    "Gastos": "vacaciones-26173",
+    "default": "gastos-66dbe",
     "gastos": "gastos-66dbe"
   },
   "targets": {},

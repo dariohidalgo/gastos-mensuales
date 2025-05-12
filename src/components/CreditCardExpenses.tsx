@@ -7,30 +7,30 @@ const CreditCardExpenseForm: React.FC = () => {
   const [transactionDetail, setTransactionDetail] = useState<string>("");
   const [amountInPesos, setAmountInPesos] = useState<string>("");
   const [amountInDollars, setAmountInDollars] = useState<string>("");
-  const [tax, setTax] = useState<number>(0); // Impuesto calculado automáticamente
+
+  // Cálculo automático del impuesto para mostrar
+  const calculatedTax =
+    parseFloat(amountInPesos || "0") > 0
+      ? parseFloat(amountInPesos) * 0.21
+      : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Calcular impuestos automáticamente basados en las tasas proporcionadas
-    const calculatedTax = parseFloat(amountInPesos) * 0.21; // Ejemplo: IVA 21%
-    setTax(calculatedTax);
 
     try {
       await addDoc(collection(db, "creditCardExpenses"), {
         date,
         transactionDetail,
         amountInPesos: parseFloat(amountInPesos),
-        amountInDollars: parseFloat(amountInDollars),
+        amountInDollars: parseFloat(amountInDollars || "0"),
         tax: calculatedTax,
       });
 
-      // Restablecer el formulario después de guardar
+      // Resetear el formulario
       setDate("");
       setTransactionDetail("");
       setAmountInPesos("");
       setAmountInDollars("");
-      setTax(0);
     } catch (error) {
       console.error("Error al agregar el gasto: ", error);
     }
@@ -43,9 +43,7 @@ const CreditCardExpenseForm: React.FC = () => {
         onSubmit={handleSubmit}
       >
         <div className="col-md-2">
-          <label className="mb-2" htmlFor="date">
-            Fecha:
-          </label>
+          <label className="mb-2" htmlFor="date">Fecha:</label>
           <input
             className="form-control"
             type="date"
@@ -57,9 +55,7 @@ const CreditCardExpenseForm: React.FC = () => {
         </div>
 
         <div className="col-md-3">
-          <label className="mb-2" htmlFor="transactionDetail">
-            Detalle de Transacción:
-          </label>
+          <label className="mb-2" htmlFor="transactionDetail">Detalle:</label>
           <input
             className="form-control"
             type="text"
@@ -72,14 +68,11 @@ const CreditCardExpenseForm: React.FC = () => {
         </div>
 
         <div className="col-md-2">
-          <label className="mb-2" htmlFor="amountInPesos">
-            Monto en Pesos:
-          </label>
+          <label className="mb-2" htmlFor="amountInPesos">Pesos:</label>
           <input
             className="form-control"
             type="number"
             id="amountInPesos"
-            placeholder="Pesos"
             value={amountInPesos}
             onChange={(e) => setAmountInPesos(e.target.value)}
             required
@@ -87,20 +80,17 @@ const CreditCardExpenseForm: React.FC = () => {
         </div>
 
         <div className="col-md-2">
-          <label className="mb-2" htmlFor="amountInDollars">
-            Monto en Dólares:
-          </label>
+          <label className="mb-2" htmlFor="amountInDollars">Dólares:</label>
           <input
             className="form-control"
             type="number"
             id="amountInDollars"
-            placeholder="Dólares"
             value={amountInDollars}
             onChange={(e) => setAmountInDollars(e.target.value)}
           />
         </div>
 
-        <div className="col-md-2  d-flex justify-content-center mt-3">
+        <div className="col-md-2 d-flex justify-content-center mt-3">
           <button className="btn btn-success btn-lg" type="submit">
             Enviar
           </button>
@@ -108,9 +98,9 @@ const CreditCardExpenseForm: React.FC = () => {
       </form>
 
       {/* Mostrar el impuesto calculado */}
-      {tax > 0 && (
+      {calculatedTax > 0 && (
         <div className="mt-3">
-          <h5>Impuesto Calculado: ${tax.toFixed(2)}</h5>
+          <h5>Impuesto Calculado: ${calculatedTax.toFixed(2)}</h5>
         </div>
       )}
     </div>

@@ -28,15 +28,6 @@ interface Expense {
   installments?: number;
 }
 
-interface CreditCardExpense {
-  id?: string;
-  date: string;
-  transactionDetail: string;
-  amountInPesos: number;
-  amountInDollars?: number;
-  installments: number;
-}
-
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -50,19 +41,16 @@ interface ExpenseSummaryProps {
 }
 
 const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => {
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    (new Date().getMonth() + 1).toString().padStart(2, '0')
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
-  const [creditCardExpenses, setCreditCardExpenses] = useState<
-    CreditCardExpense[]
-  >([]);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalCredit, setTotalCredit] = useState<number>(0);
   const [totalFixed, setTotalFixed] = useState<number>(0);
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    (new Date().getMonth() + 1).toString()
-  );
-  const [selectedYear] = useState<number>(new Date().getFullYear());
-
+  const [localCreditCardTotals, setLocalCreditCardTotals] = useState<Record<string, number>>(creditCardTotals);
 
   // Estados para los inputs
   const [amount, setAmount] = useState<string>("");
@@ -71,7 +59,6 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => 
   const [description, setDescription] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [currentUserName, setCurrentUserName] = useState<string>("");
-
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,58 +92,88 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => 
       setExpenses(expensesData);
     };
 
-    const fetchCreditCardExpenses = async () => {
-      const q = query(collection(db, "creditCardExpenses"));
+    fetchExpenses();
+  }, []);
+
+  // Actualizar totales cuando cambian los gastos o el filtro de mes/año
+  useEffect(() => {
+    // Filtrar gastos por mes y año
+    const filtered = expenses.filter((expense) => {
+      const expenseMonth = (expense.createdAt.getMonth() + 1).toString().padStart(2, '0');
+      const expenseYear = expense.createdAt.getFullYear();
+      return (
+        expenseMonth === selectedMonth &&
+        expenseYear === selectedYear
+      );
+    });
+
+    // Calcular totales de ingresos y gastos fijos
+    const totalIncomeForMonth = filtered
+      .filter((expense) => expense.type === "Ingresos")
+      .reduce((acc, expense) => acc + expense.amount, 0);
+
+    const totalFixedForMonth = filtered
+      .filter((expense) => expense.type === "Gastos")
+      .reduce((acc, expense) => acc + expense.amount, 0);
+
+    // Actualizar totales de tarjetas
+    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentYear = new Date().getFullYear();
+    
+    // Solo mostrar totales si estamos en el mes actual
+    let totalCreditForMonth = 0;
+    const filteredCreditTotals: Record<string, number> = {};
+    
+    if (selectedMonth === currentMonth && selectedYear === currentYear) {
+      // Si estamos en el mes actual, mostrar los totales disponibles
+      Object.entries(creditCardTotals).forEach(([key, value]) => {
+        filteredCreditTotals[key] = value;
+        totalCreditForMonth += value;
+      });
+    }
+
+    // Actualizar estados
+    setFilteredExpenses(filtered);
+    setTotalIncome(totalIncomeForMonth);
+    setTotalFixed(totalFixedForMonth);
+    setTotalCredit(totalCreditForMonth);
+    setLocalCreditCardTotals(filteredCreditTotals);
+  }, [selectedMonth, selectedYear, expenses, creditCardTotals]);
+
+  // Cargar gastos al inicio
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      const q = query(collection(db, "expenses"));
       const querySnapshot = await getDocs(q);
 
-      const expensesData: CreditCardExpense[] = querySnapshot.docs.map(
-        (doc) => {
-          const data = doc.data() as CreditCardExpense;
+      const expensesData: Expense[] = querySnapshot.docs.map(
+        (doc: DocumentData) => {
+          const data = doc.data() as Omit<Expense, "id" | "createdAt"> & {
+            createdAt: Timestamp;
+          };
+          const createdAt =
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate()
+              : new Date();
           return {
             id: doc.id,
-            ...data,
+            amount: data.amount,
+            type: data.type,
+            category: data.category,
+            description: data.description || "",
+            installments: data.installments,
+            createdAt,
+            userName: data.userName || "",
+            paid: data.paid || false,
           };
         }
       );
 
-      setCreditCardExpenses(expensesData);
+      setExpenses(expensesData);
     };
 
     fetchExpenses();
-    fetchCreditCardExpenses();
   }, []);
-
-  useEffect(() => {
-    if (selectedMonth) {
-      const filtered = expenses.filter((expense) => {
-        const expenseMonth = expense.createdAt.getMonth() + 1;
-        const expenseYear = expense.createdAt.getFullYear();
-        return (
-          expenseMonth === parseInt(selectedMonth) &&
-          expenseYear === selectedYear
-        );
-      });
-
-      const totalIncomeForMonth = filtered
-        .filter((expense) => expense.type === "Ingresos")
-        .reduce((acc, expense) => acc + expense.amount, 0);
-
-      const totalFixedForMonth = filtered
-        .filter((expense) => expense.type === "Gastos")
-        .reduce((acc, expense) => acc + expense.amount, 0);
-
-      const key = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
-      const totalCreditForMonth = creditCardTotals[key] || 0;
-
-  
-      setFilteredExpenses(filtered);
-      setTotalIncome(totalIncomeForMonth);
-      setTotalCredit(totalCreditForMonth);
-      setTotalFixed(totalFixedForMonth);
-    } else {
-      setFilteredExpenses(expenses);
-    }
-  }, [selectedMonth, selectedYear, expenses, creditCardTotals]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -171,11 +188,9 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => 
   }, []);
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newMonth = e.target.value;
+    const newMonth = e.target.value.padStart(2, '0');
+    console.log('Cambiando a mes:', newMonth);
     setSelectedMonth(newMonth);
-    const key = `${selectedYear}-${String(newMonth).padStart(2, '0')}`;
-    const totalCreditForMonth = creditCardTotals[key] || 0;
-    setTotalCredit(totalCreditForMonth);
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -360,18 +375,32 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => 
         </div>
       </form>
 
-      {/* Selector de mes */}
-      <div className="text-center mb-4">
+      {/* Selectores de mes y año */}
+      <div className="text-center mb-4 d-flex justify-content-center gap-3">
         <select
           className="form-select w-auto d-inline-block"
           value={selectedMonth}
           onChange={handleMonthChange}
         >
-          <option value="">Seleccionar mes</option>
-          {Array.from({ length: 12 }, (_, i) => (
-            <option key={i + 1} value={i + 1}>
-              {new Date(0, i).toLocaleString("default", { month: "long" })}
-            </option> 
+          {Array.from({ length: 12 }, (_, i) => {
+            const monthNum = (i + 1).toString().padStart(2, '0');
+            return (
+              <option key={monthNum} value={monthNum}>
+                {new Date(0, i).toLocaleString("default", { month: "long" })}
+              </option>
+            );
+          })}
+        </select>
+
+        <select
+          className="form-select w-auto d-inline-block"
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+        >
+          {Array.from({ length: 5 }, (_, i) => (
+            <option key={i} value={new Date().getFullYear() + i}>
+              {new Date().getFullYear() + i}
+            </option>
           ))}
         </select>
       </div>
@@ -397,18 +426,25 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ creditCardTotals }) => 
           </div>
 
           <div className="col-md-3 mb-3">
-            <div className="card text-white bg-warning">
-              <div className="card-header">Total Tarjeta de Crédito</div>
+            <div className="card text-white bg-danger">
+              <div className="card-header">Total de Tarjeta de Crédito</div>
               <div className="card-body">
+                <h5 className="card-title">{formatCurrency(totalCredit)}</h5>
                 
-                {/* Mostrar totales por tarjeta */}
-                <div className="mt-0">
-                  {Object.entries(creditCardTotals).map(([card, total]) => (
-                    <div key={card} className="d-flex justify-content-start align-items-center ">
-                
-                      <h5 className="card-title">{formatCurrency(total)}</h5>
-                    </div>
-                  ))}
+             
+                <div className="mt-1">
+                {Object.entries(localCreditCardTotals)
+  .filter(([key]) => key.startsWith(`${selectedYear}-${selectedMonth}`))
+  .map(([card, total]) => {
+    const cardName = card.split('-').slice(2).join('-'); // Elimina el prefijo de fecha
+    return (
+      <div key={card} className="d-flex justify-content-between align-items-center">
+        <small>{cardName}:</small>
+        <span>{formatCurrency(total)}</span>
+      </div>
+    );
+  })}
+
                 </div>
               </div>
             </div>

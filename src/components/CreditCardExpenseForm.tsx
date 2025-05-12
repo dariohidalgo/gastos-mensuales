@@ -275,10 +275,10 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
     };
 
     /* ─────────────   Cálculo total para vista ───────────── */
-    const totalForMonth = searchedExpenses.reduce(
-      (sum, e) => sum + e.amountInPesos / e.installments,
-      0
-    );
+    // const totalForMonth = searchedExpenses.reduce(
+    //   (sum, e) => sum + e.amountInPesos / e.installments,
+    //   0
+    // );
 
     /* ────────────────────  Render  ──────────────────── */
     // Aseguramos que totalForMonth esté disponible como prop
@@ -547,7 +547,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
         </table>
 
         {/* ---------------  Total mes --------------- */}
-        <div className="d-flex justify-content-center">
+        {/* <div className="d-flex justify-content-center">
           <h4>
             Total a pagar en{" "}
             {new Date(0, monthFilter - 1).toLocaleString("es-ES", {
@@ -555,7 +555,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
             })}{" "}
             {yearFilter}: ${totalForMonth.toFixed(2)}
           </h4>
-        </div>
+        </div> */}
       </div>
     );
   }

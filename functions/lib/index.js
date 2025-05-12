@@ -37,82 +37,121 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.syncCreditCardEmailsHTTP = exports.syncCreditCardEmails = void 0;
-// functions/src/index.ts
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const googleapis_1 = require("googleapis");
+const quoted_printable_1 = require("quoted-printable");
 const dayjs_1 = __importDefault(require("dayjs"));
+const customParseFormat_1 = __importDefault(require("dayjs/plugin/customParseFormat"));
+dayjs_1.default.extend(customParseFormat_1.default);
 require("dayjs/locale/es");
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 admin.initializeApp();
 const db = admin.firestore();
 const oAuth2Client = new googleapis_1.google.auth.OAuth2(process.env.CLIENT_ID, process.env.CLIENT_SECRET, process.env.REDIRECT_URI);
-oAuth2Client.setCredentials({
-    refresh_token: process.env.REFRESH_TOKEN,
-});
+oAuth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
 const gmail = googleapis_1.google.gmail({ version: "v1", auth: oAuth2Client });
-const processGmailMovements = async () => {
-    const query = `from:alertas@infomistarjetas.com subject:'Notificación de Movimiento' newer_than:1d`;
-    try {
-        const res = await gmail.users.messages.list({ userId: "me", q: query });
-        const messages = res.data?.messages || [];
-        console.log(`🔍 Mensajes encontrados: ${messages.length}`);
-        if (messages.length === 0) {
-            console.log("⚠️ No se encontraron mensajes con el filtro aplicado.");
-            return;
+function findBodyData(parts, mimeType) {
+    if (!parts)
+        return null;
+    for (const part of parts) {
+        if (part.mimeType === mimeType && part.body?.data) {
+            return part.body.data;
         }
-        for (const msg of messages) {
-            const msgData = await gmail.users.messages.get({
-                userId: "me",
-                id: msg.id ?? "",
-                format: "full",
-            });
-            const bodyEncoded = msgData.data.payload?.parts?.[0]?.body?.data || "";
-            const body = Buffer.from(bodyEncoded, "base64").toString("utf-8");
-            const matchPesos = body.match(/consumo de \$\s?([\d.,]+)/i);
-            const matchDolares = body.match(/consumo de USD\s?([\d.,]+)/i);
-            const matchCuotas = body.match(/en (\d+) cuotas?/i);
-            const matchFecha = body.match(/el d[ií]a (\d{2}\/\d{2}\/\d{4})/i);
-            const matchComercio = body.match(/en ([A-ZÁÉÍÓÚÑ0-9.*\- ]+)/i);
-            const amountInPesos = matchPesos
-                ? parseFloat(matchPesos[1].replace(/\./g, "").replace(",", "."))
-                : 0;
-            const amountInDollars = matchDolares
-                ? parseFloat(matchDolares[1].replace(/\./g, "").replace(",", "."))
-                : 0;
-            const installments = matchCuotas ? parseInt(matchCuotas[1]) : 1;
-            const dateStr = matchFecha ? matchFecha[1] : null;
-            const transactionDetail = matchComercio ? matchComercio[1].trim() : "";
-            const msgDate = (0, dayjs_1.default)(dateStr, "DD/MM/YYYY");
-            if (!msgDate.isValid()) {
-                console.log("Email omitido por fecha inválida:", dateStr);
-                continue;
-            }
-            const snapshot = await db
-                .collection("creditCardExpenses")
-                .where("date", "==", msgDate.format("YYYY-MM-DD"))
-                .where("transactionDetail", "==", transactionDetail)
-                .where("amountInPesos", "==", amountInPesos)
-                .limit(1)
-                .get();
-            if (!snapshot.empty) {
-                console.log("Movimiento ya existe, no se duplica");
-                continue;
-            }
+        if (part.parts) {
+            const found = findBodyData(part.parts, mimeType);
+            if (found)
+                return found;
+        }
+    }
+    return null;
+}
+function decodeEmail(rawData) {
+    const base64 = rawData.replace(/-/g, "+").replace(/_/g, "/");
+    const buffer = Buffer.from(base64, "base64");
+    return (0, quoted_printable_1.decode)(buffer.toString("utf8"));
+}
+function extractCommerceAndDate(text) {
+    const regex = /el día\s+(\d{2}\/\d{2}\/\d{4})[^.]*?en\s+([A-Z0-9*]+)/i;
+    const match = text.match(regex);
+    if (match) {
+        const [, dateStr, transactionDetail] = match;
+        return { dateStr, transactionDetail };
+    }
+    console.warn("⚠️ No se pudo extraer fecha y comercio.");
+    return { dateStr: null, transactionDetail: null };
+}
+function extractAmounts(text) {
+    const regex = /consumo de \$\s*([\d.]+,\d{2})(?:\s+en\s+(\d+)\s+cuotas?)?/i;
+    const match = text.match(regex);
+    if (match) {
+        const raw = match[1].replace(/\./g, "").replace(",", ".");
+        const amountInPesos = parseFloat(raw);
+        const installments = match[2] ? parseInt(match[2], 10) : 1;
+        return { amountInPesos, installments };
+    }
+    console.warn("⚠️ No se detectó un importe válido.");
+    return { amountInPesos: 0, installments: 1 };
+}
+const processGmailMovements = async () => {
+    const query = 'from:alertas@infomistarjetas.com subject:"Novedades de tus transacciones" newer_than:1d';
+    const res = await gmail.users.messages.list({ userId: "me", q: query });
+    const messages = res.data?.messages || [];
+  
+    for (const msg of messages) {
+       
+        const msgData = await gmail.users.messages.get({
+            userId: "me",
+            id: msg.id,
+            format: "full",
+        });
+        const payload = msgData.data.payload;
+        let htmlRaw = "";
+        if (payload?.parts) {
+            const htmlEncoded = findBodyData(payload.parts, "text/html");
+            if (htmlEncoded)
+                htmlRaw = decodeEmail(htmlEncoded);
+        }
+        else if (payload?.body?.data) {
+            htmlRaw = decodeEmail(payload.body.data);
+        }
+        const plainText = htmlRaw
+            .replace(/&nbsp;/gi, " ")
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+        
+        const { dateStr, transactionDetail } = extractCommerceAndDate(plainText);
+        const { amountInPesos, installments } = extractAmounts(plainText);
+        if (!transactionDetail || !amountInPesos) {
+            console.warn("⚠️ Datos incompletos. Se omite el registro.");
+            continue;
+        }
+        const formattedDate = dateStr
+            ? (0, dayjs_1.default)(dateStr, "DD/MM/YYYY").format("YYYY-MM-DD")
+            : (0, dayjs_1.default)(parseInt(msgData.data.internalDate || "0")).format("YYYY-MM-DD");
+        const dup = await db
+            .collection("creditCardExpenses")
+            .where("date", "==", formattedDate)
+            .where("transactionDetail", "==", transactionDetail)
+            .where("amountInPesos", "==", amountInPesos)
+            .get();
+        if (dup.empty) {
             await db.collection("creditCardExpenses").add({
-                date: msgDate.format("YYYY-MM-DD"),
+                date: formattedDate,
                 transactionDetail,
                 amountInPesos,
-                amountInDollars,
+                amountInDollars: 0,
                 installments,
             });
-            console.log("✅ Gasto agregado:", transactionDetail, amountInPesos);
+           
+        }
+        else {
+            console.log(`🔁 Duplicado: ${transactionDetail} - ya existe.`);
         }
     }
-    catch (err) {
-        console.error("❌ Error al sincronizar mails:", err);
-    }
+    
 };
 exports.syncCreditCardEmails = functions.pubsub
     .schedule("every day 23:50")
@@ -120,19 +159,17 @@ exports.syncCreditCardEmails = functions.pubsub
     .onRun(processGmailMovements);
 exports.syncCreditCardEmailsHTTP = functions.https.onRequest(async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, POST");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
     if (req.method === "OPTIONS") {
         res.status(204).send("");
         return;
     }
     try {
         await processGmailMovements();
-        res.status(200).send("✅ Sincronización completada.");
+        res.status(200).send("✅ Sincronizado");
     }
-    catch (error) {
-        console.error("❌ Error en sincronización HTTP:", error);
-        res.status(500).send("❌ Error al sincronizar.");
+    catch (e) {
+        console.error("❌ Error al sincronizar:", e);
+        res.status(500).send(`❌ ${e}`);
     }
 });
 //# sourceMappingURL=index.js.map

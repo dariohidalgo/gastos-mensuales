@@ -9,20 +9,20 @@ const ExpenseForm: React.FC = () => {
   };
 
   return (
-    <div className="container d-flex flex-column align-items-center">
+    <div className="container d-flex flex-column align-items-center expense-form">
       {/* Aquí podrías tener el resto de tu formulario de gastos */}
 
-      <div className="d-flex justify-content-center mt-3">
+      <div className="d-flex flex-column flex-md-row justify-content-center mt-3 gap-3 mb-4">
         <button
-          className="btn btn-primary mx-2"
-          style={{ width: "200px" }}
+          className="btn btn-primary"
+          style={{ width: "100%", maxWidth: "200px" }}
           onClick={() => (window.location.href = "/credit-expenses")}
         >
           Ver Gastos de Tarjeta
         </button>
         <button
-          className="btn btn-info mx-2"
-          style={{ width: "200px" }}
+          className="btn btn-info"
+          style={{ width: "100%", maxWidth: "200px" }}
           onClick={goToGraph}
         >
           Ver Gráfico de Gastos
