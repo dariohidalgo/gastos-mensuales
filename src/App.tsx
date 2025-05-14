@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,11 +9,10 @@ import Login from "./components/login";
 import ExpenseForm from "./components/expenseForm";
 import ExpenseSummary from "./components/ExpenseSummary";
 import CreditCardExpenseForm from "./components/CreditCardExpenseForm";
-import GastosGrafico from "./components/GastosGrafico";
-import UserInfo from "./components/UserInfo";
+import Header from "./components/Header";
 import { auth } from "./firebaseConfig";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import "../node_modules/bootstrap/dist/css/bootstrap.min.css";
+
 import "./App.css";
 
 // Función para proteger rutas
@@ -34,7 +32,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   if (isAuthenticating) {
-    return null; // O mostrar un spinner de carga mientras se verifica la autenticación
+    return null;
   }
 
   return user ? <>{children}</> : <Navigate to="/" />;
@@ -42,27 +40,28 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({
 
 // Componente principal de la aplicación
 const App: React.FC = () => {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedMode = localStorage.getItem("darkMode");
+    return savedMode ? JSON.parse(savedMode) : false;
+  });
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    if (!darkMode) {
+  };
+
+  useEffect(() => {
+    if (darkMode) {
       document.body.classList.remove("light-mode");
       document.body.classList.add("dark-mode");
     } else {
       document.body.classList.remove("dark-mode");
       document.body.classList.add("light-mode");
     }
-  };
-  const [creditCardTotals, setCreditCardTotals] = useState<Record<string, number>>({});
-
-  const handleTotalsUpdate = (totals: Record<string, number>) => {
-    setCreditCardTotals(totals);
-  };
+    localStorage.setItem("darkMode", JSON.stringify(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Usar sendBeacon para una desconexión segura al cerrar o recargar la página
       navigator.sendBeacon(
         "/signout",
         JSON.stringify({ user: auth.currentUser })
@@ -91,30 +90,16 @@ const App: React.FC = () => {
           transition: "background-color 0.3s, color 0.3s",
         }}
       >
-        <header className="app-header p-3 position-relative ">
-          <div className=" top-0 end-0 p-3 d-flex flex-column flex-md-row align-items-center gap-2 user-controls">
-            <button
-              onClick={toggleDarkMode}
-              className="mode-toggle btn btn-outline-secondary w-20 w-md-auto"
-            >
-              {darkMode ? "☀️" : "🌙"}
-            </button>
-            <div className="user-info w-100 w-md-auto">
-              <UserInfo />
-            </div>
-          </div>
-        </header>
-
+        <Header toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/gastos-grafico" element={<GastosGrafico />} />
           <Route
             path="/expenses"
             element={
               <PrivateRoute>
                 <>
                   <ExpenseForm />
-                  <ExpenseSummary creditCardTotals={creditCardTotals} />
+                  <ExpenseSummary />
                 </>
               </PrivateRoute>
             }
@@ -123,7 +108,7 @@ const App: React.FC = () => {
             path="/credit-expenses"
             element={
               <PrivateRoute>
-                <CreditCardExpenseForm onTotalsUpdate={handleTotalsUpdate} />
+                <CreditCardExpenseForm />
               </PrivateRoute>
             }
           />

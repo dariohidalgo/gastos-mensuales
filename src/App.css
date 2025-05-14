@@ -1,14 +1,12 @@
+@import 'tailwindcss';
+
 .light-mode table {
   background-color: #121212 !important;
-  color: #ffffff !important;
+  color: #121212 !important;
   border: 1px solid #333;
 }
 
-.dark-mode table {
-  background-color: #121212 !important;
-  color: #ffffff !important;
-  border: 1px solid #ddd;
-}
+
 
 /* Estilos responsivos */
 @media (max-width: 768px) {
