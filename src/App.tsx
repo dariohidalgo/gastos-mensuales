@@ -46,8 +46,26 @@ const App: React.FC = () => {
   });
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("darkMode", JSON.stringify(newMode));
+    
+    // Aplicar clase dark al elemento raíz
+    if (newMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   };
+
+  // Aplicar modo oscuro al cargar
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   useEffect(() => {
     if (darkMode) {
@@ -78,41 +96,50 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <Router>
       <div
         className={`app ${darkMode ? "dark-mode" : "light-mode"}`}
         style={{
-          padding: "20px",
+          padding: "10px",
           backgroundColor: darkMode ? "#121212" : "#ffffff",
           color: darkMode ? "#ffffff" : "#000000",
           minHeight: "100vh",
           transition: "background-color 0.3s, color 0.3s",
         }}
       >
-        <Header toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route
-            path="/expenses"
-            element={
-              <PrivateRoute>
-                <>
-                  <ExpenseForm />
-                  <ExpenseSummary />
-                </>
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/credit-expenses"
-            element={
-              <PrivateRoute>
-                <CreditCardExpenseForm />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
+        <Header toggleDarkMode={toggleDarkMode} darkMode={darkMode} mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
+        <div
+          style={{
+            marginTop: mobileMenuOpen ? '2.5rem' : '5rem',
+            transition: 'margin-top 1s'
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route
+              path="/expenses"
+              element={
+                <PrivateRoute>
+                  <>
+                    <ExpenseForm />
+                    <ExpenseSummary />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/credit-expenses"
+              element={
+                <PrivateRoute>
+                  <CreditCardExpenseForm />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </div>
       </div>
     </Router>
   );

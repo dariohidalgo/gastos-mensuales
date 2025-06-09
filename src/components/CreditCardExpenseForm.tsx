@@ -52,6 +52,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
     const [creditCardTotals, setCreditCardTotals] = useState<Record<string, number>>({});
     const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [searchDate, setSearchDate] = useState<string>("");
     const [loadingSync, setLoadingSync] = useState(false);
 
     const fetchExpenses = useCallback(async () => {
@@ -139,9 +140,10 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
       return filteredExpenses.filter(
         (exp) =>
           typeof exp?.transactionDetail === "string" &&
-          exp.transactionDetail.toLowerCase().includes(searchTerm.toLowerCase())
+          exp.transactionDetail.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          (!searchDate || exp.date === searchDate)
       );
-    }, [filteredExpenses, searchTerm]);
+    }, [filteredExpenses, searchTerm, searchDate]);
 
     useEffect(() => {
       const filtered = expenses.flatMap((exp) => {
@@ -179,7 +181,7 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
 
         // Extraer el tipo de tarjeta del detalle
         const detail = exp.transactionDetail.toUpperCase();
-        let creditCard = 'OTRA';
+        let creditCard = 'Total';
 
         if (detail.includes('VISA')) creditCard = 'VISA';
         else if (detail.includes('MASTER')) creditCard = 'MASTERCARD';
@@ -348,183 +350,196 @@ const CreditCardExpenseForm: React.FC<CreditCardExpenseFormProps> = React.memo(
     />
   </div>
 
-  <div className="w-full max-w-6xl mx-auto">
-      <div className="w-full flex flex-col sm:flex-row flex-wrap justify-center gap-4 mt-4">
-        <button
-          type="submit"
-          className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition"
-        >
-          Agregar
-        </button>
+  <div className="col-span-full">
+    <div className="flex flex-row w-75 lg:w-full justify-center mx-auto gap-2 mt-4">
+      <button
+        type="submit"
+        className="w-1/3 sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold px-2 sm:px-4 py-2 rounded-md shadow-sm transition text-sm sm:text-base"
+      >
+        Agregar
+      </button>
 
-        <button
-          type="button"
-          className={`bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition ${loadingSync ? 'opacity-60 cursor-not-allowed' : ''}`}
-          onClick={handleSync}
-          disabled={loadingSync}
-        >
-          {loadingSync ? 'Sincronizando…' : 'Sincronizar Gmail'}
-        </button>
+      <button
+        type="button"
+        className={`w-1/3 sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-2 sm:px-4 py-2 rounded-md shadow-sm transition text-sm sm:text-base ${loadingSync ? 'opacity-60 cursor-not-allowed' : ''}`}
+        onClick={handleSync}
+        disabled={loadingSync}
+      >
+        {loadingSync ? 'Sincronizando…' : 'Sincronizar Gmail'}
+      </button>
 
-        <button
-          type="button"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition"
-          onClick={() => navigate("/expenses")}
-        >
-          Volver
-        </button>
-      </div>
+      <button
+        type="button"
+        className="w-1/3 sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 sm:px-4 py-2 rounded-md shadow-sm transition text-sm sm:text-base"
+        onClick={() => navigate("/expenses")}
+      >
+        Volver
+      </button>
     </div>
+  </div>
 
 </form>
 
 
         {/* ---------------  Filtros --------------- */}
         <div className="w-full max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6">
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Mes */}
+            <div>
+              <label htmlFor="month" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Mes</label>
+              <select
+                id="month"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(parseInt(e.target.value))}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>
+                    {new Date(0, i).toLocaleString("es-ES", { month: "long" })}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-    {/* Mes */}
-    <div>
-      <label htmlFor="month" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Mes</label>
-      <select
-        id="month"
-        value={monthFilter}
-        onChange={(e) => setMonthFilter(parseInt(e.target.value))}
-        className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-      >
-        {Array.from({ length: 12 }, (_, i) => (
-          <option key={i + 1} value={i + 1}>
-            {new Date(0, i).toLocaleString("es-ES", { month: "long" })}
-          </option>
-        ))}
-      </select>
-    </div>
+            {/* Año */}
+            <div>
+              <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Año</label>
+              <select
+                id="year"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(parseInt(e.target.value))}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+              >
+                <option value={today.getFullYear()}>{today.getFullYear()}</option>
+                <option value={today.getFullYear() + 1}>{today.getFullYear() + 1}</option>
+              </select>
+            </div>
 
-    {/* Año */}
-    <div>
-      <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Año</label>
-      <select
-        id="year"
-        value={yearFilter}
-        onChange={(e) => setYearFilter(parseInt(e.target.value))}
-        className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-      >
-        <option value={today.getFullYear()}>{today.getFullYear()}</option>
-        <option value={today.getFullYear() + 1}>{today.getFullYear() + 1}</option>
-      </select>
-    </div>
+            {/* Buscar por detalle */}
+            <div>
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Buscar por detalle</label>
+              <input
+                id="search"
+                type="text"
+                placeholder="Buscar por detalle"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+              />
+            </div>
 
-    {/* Buscar */}
-    <div>
-      <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Buscar</label>
-      <input
-        id="search"
-        type="text"
-        placeholder="Buscar por detalle"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
-      />
-    </div>
-
-  </div>
-</div>
-
-
-        {/* ---------------  Tabla --------------- */}
-        <div className="w-full max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 overflow-x-auto">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-4">
-  <div>
-    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-      Gastos de Tarjeta de Crédito -{" "}
-      {new Date(0, monthFilter - 1).toLocaleString("es-ES", { month: "long" })}{" "}
-      {yearFilter}
-    </h3>
-    {selectedExpenses.length > 0 && (
-      <button
-        className="mt-2 lg:mt-0 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm transition"
-        onClick={handleMultiDelete}
-      >
-        Eliminar {selectedExpenses.length} Seleccionado(s)
-      </button>
-    )}
-  </div>
-
-  {/* Totales compactos */}
-  {Object.keys(creditCardTotals).length > 0 && (
-    <div className="flex flex-wrap gap-2">
-      {Object.entries(creditCardTotals).map(([card, total]) => (
-        <div key={card} className="bg-gray-800 text-white px-4 py-2 rounded-md shadow text-sm">
-          <div className="text-xs text-gray-300">{card}</div>
-          <div className="text-green-400 font-semibold">
-            {new Intl.NumberFormat('es-AR', {
-              style: 'currency',
-              currency: 'ARS',
-            }).format(total)}
+            {/* Buscar por fecha */}
+            <div>
+              <label htmlFor="searchDate" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Buscar por fecha</label>
+              <input
+                id="searchDate"
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+              />
+            </div>
           </div>
         </div>
-      ))}
-    </div>
-  )}
-</div>
 
-
-  <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-    <thead className="bg-gray-100 dark:bg-gray-700">
-      <tr>
-        <th className="px-4 py-2">
-          <input
-            type="checkbox"
-            checked={selectedExpenses.length === filteredExpenses.length}
-            onChange={handleSelectAllExpenses}
-          />
-        </th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Detalle</th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Fecha</th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Monto (ARS)</th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Monto (USD)</th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Cuotas Restantes</th>
-        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Acciones</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-      {searchedExpenses.map((e) => {
-        const perInstall = e.amountInPesos / e.installments;
-        const perInstallUsd = e.amountInDollars ? e.amountInDollars / e.installments : 0;
-        const remainingText =
-          e.remainingInstallments === 1
-            ? "1 última cuota"
-            : e.remainingInstallments ?? e.installments;
-
-        return (
-          <tr key={e.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-            <td className="px-4 py-2">
-              <input
-                type="checkbox"
-                checked={selectedExpenses.includes(e.id!)}
-                onChange={() => handleSelectExpense(e.id!)}
-              />
-            </td>
-            <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{e.transactionDetail}</td>
-            <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{e.date}</td>
-            <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">${perInstall.toFixed(2)}</td>
-            <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">${perInstallUsd.toFixed(2)}</td>
-            <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{remainingText}</td>
-            <td className="px-4 py-2">
+        {/* ---------------  Cards --------------- */}
+        <div className="w-full max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-4">
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                Gastos de Tarjeta de Crédito -{" "}
+                {new Date(0, monthFilter - 1).toLocaleString("es-ES", { month: "long" })}{" "}
+                {yearFilter}
+              </h3>
               <button
-                className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded-md transition"
-                onClick={() => handleDelete(e.id)}
+                onClick={handleSelectAllExpenses}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm transition"
               >
-                🗑️
+                {selectedExpenses.length === filteredExpenses.length ? 'Deseleccionar Todo' : 'Seleccionar Todo'}
               </button>
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  
-  </table>
-</div>
+              {selectedExpenses.length > 0 && (
+                <button
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm transition"
+                  onClick={handleMultiDelete}
+                >
+                  Eliminar {selectedExpenses.length} Seleccionado(s)
+                </button>
+              )}
+            </div>
+
+            {/* Totales compactos */}
+            {Object.keys(creditCardTotals).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(creditCardTotals).map(([card, total]) => (
+                  <div key={card} className="bg-gray-800 text-white px-4 py-2 rounded-md shadow text-sm">
+                    <div className="text-xs text-gray-300">{card}</div>
+                    <div className="text-green-400 font-semibold">
+                      {new Intl.NumberFormat('es-AR', {
+                        style: 'currency',
+                        currency: 'ARS',
+                      }).format(total)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {searchedExpenses.map((e) => {
+              const perInstall = e.amountInPesos / e.installments;
+              const perInstallUsd = e.amountInDollars ? e.amountInDollars / e.installments : 0;
+              const remainingText =
+                e.remainingInstallments === 1
+                  ? "1 última cuota"
+                  : e.remainingInstallments ?? e.installments;
+
+              return (
+                <div
+                  key={e.id}
+                  className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 hover:shadow-lg transition"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedExpenses.includes(e.id!)}
+                        onChange={() => handleSelectExpense(e.id!)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                      />
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        {e.transactionDetail}
+                      </h4>
+                    </div>
+                    <button
+                      className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded-md transition"
+                      onClick={() => handleDelete(e.id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                  
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Fecha: {e.date}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Monto (ARS): ${perInstall.toFixed(2)}
+                    </p>
+                    {perInstallUsd > 0 && (
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Monto (USD): ${perInstallUsd.toFixed(2)}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Cuotas Restantes: {remainingText}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
       </div>
     );

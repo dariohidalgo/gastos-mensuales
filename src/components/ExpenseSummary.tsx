@@ -26,6 +26,7 @@ import {
   Tooltip,
   Legend,
   ArcElement,
+  Filler
 } from 'chart.js';
 import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
 import { useNavigate } from "react-router-dom";
@@ -40,7 +41,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  Filler
 );
 
 // --- Helper Function (copiada de CreditCardExpenseForm) ---
@@ -358,8 +360,10 @@ const ExpenseSummary: React.FC = () => {
 
     const categoryDistributionData = {
       labels: categories,
+      
       datasets: [{
         data: categoryData,
+      
         backgroundColor: [
           isDarkMode ? '#42d77d' : '#34c759', // Verde más brillante en modo oscuro
           isDarkMode ? '#6a69ff' : '#5856d6', // Púrpura más brillante
@@ -441,17 +445,28 @@ const ExpenseSummary: React.FC = () => {
         return;
     }
     try {
-      await addDoc(collection(db, "expenses"), {
+      // Crear el objeto de gasto con los datos del formulario
+      const newExpense = {
         amount: parseFloat(amount) || 0,
-        type,
+        type: type as 'Gastos' | 'Ingresos',
         category,
         description,
-        // Convertir la fecha del input (YYYY-MM-DD) a objeto Date de JS antes de guardar
-        // Es crucial guardarlo como Timestamp o Date en Firestore para que las queries funcionen bien
-        createdAt: new Date(date + 'T00:00:00'), // Añadir hora para evitar UTC/local issues
+        createdAt: new Date(date + 'T00:00:00'),
         userName: currentUserName,
-        paid: false, // O el valor por defecto que uses
-      });
+        paid: false,
+      };
+
+      // Agregar el documento a Firestore
+      const docRef = await addDoc(collection(db, "expenses"), newExpense);
+      
+      // Crear el objeto de gasto con el ID generado
+      const addedExpense: Expense = {
+        id: docRef.id,
+        ...newExpense
+      };
+
+      // Actualizar el estado local inmediatamente con el nuevo gasto
+      setExpenses(prevExpenses => [...prevExpenses, addedExpense]);
 
       // Limpiar formulario
       setAmount("");
@@ -460,19 +475,9 @@ const ExpenseSummary: React.FC = () => {
       setDescription("");
       setDate("");
 
-      // Volver a cargar solo 'expenses' para actualizar la tabla y cálculos
-      const expensesQuery = query(collection(db, "expenses"));
-      const expensesSnapshot = await getDocs(expensesQuery);
-      const expensesData: Expense[] = expensesSnapshot.docs.map(docSnapshot => {
-        const data = docSnapshot.data();
-        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt || 0);
-        return {
-          id: docSnapshot.id,
-          /* ...resto del mapeo... */
-          createdAt: !isNaN(createdAt.getTime()) ? createdAt : new Date(0),
-        } as Expense;
-      });
-      setExpenses(expensesData); // Dispara el useEffect de cálculo
+      // No es necesario volver a cargar todos los gastos desde Firestore
+      // ya que actualizamos el estado local directamente
+      // Esto hará que el useEffect de filtrado se ejecute automáticamente
 
     } catch (error) {
       console.error("Error adding expense: ", error);
@@ -580,10 +585,10 @@ const ExpenseSummary: React.FC = () => {
     scales: {
       x: {
         grid: {
-          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+          color: isDarkMode ? 'rgba(215, 208, 208, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
-          color: isDarkMode ? '#ffffff' : '#000000',
+          color: isDarkMode ? '#ffffff' : '#ffff',
         }
       },
       y: {
@@ -591,7 +596,7 @@ const ExpenseSummary: React.FC = () => {
           color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
-          color: isDarkMode ? '#ffffff' : '#000000',
+          color: isDarkMode ? '#90cdf4' : '#ffff',
         }
       }
     }
@@ -599,7 +604,7 @@ const ExpenseSummary: React.FC = () => {
 
   // --- JSX (Render) ---
   return (
-    <div className="container-fluid expense-summary mt-10">
+    <div className=" mt-10">
       {/* --- Selectores de Mes y Año --- */}
       <div className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 mb-6">
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -612,7 +617,7 @@ const ExpenseSummary: React.FC = () => {
         id="month-select"
         value={selectedMonth}
         onChange={handleMonthChange}
-        className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
+        className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-white px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200"
       >
         {Array.from({ length: 12 }, (_, i) => (
           <option key={i + 1} value={(i + 1).toString()}>
@@ -745,68 +750,71 @@ const ExpenseSummary: React.FC = () => {
     />
   </div>
 
-  <div className="col-span-1 flex items-end">
+  <div className="col-span-1 flex items-end gap-2">
     <button
       type="submit"
-      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition"
+      className="w-70 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition"
     >
-      {editingExpenseId ? '💾' : '+'}
+      {editingExpenseId ? '💾 Guardar' : '✅ Agregar'}
     </button>
+    {editingExpenseId && (
+      <button
+        type="button"
+        className="w-70 bg-yellow-400  text-white font-semibold px-4 py-2 rounded-md shadow-sm transition"
+        onClick={() => {
+          setEditingExpenseId(null);
+          setAmount("");
+          setType("Gastos");
+          setCategory("");
+          setDescription("");
+          setDate("");
+        }}
+      >
+       ❌ Cancelar
+      </button>
+    )}
   </div>
 </form>
 
 
       {/* --- Lista de Gastos --- */}
       <div className="w-full max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-  <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Movimientos del Mes</h4>
+  <h4 className="text-lg mx-auto justify-center flex font-semibold text-white dark:text-white mb-4">Movimientos del Mes</h4>
 
-  <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-      <thead className="bg-gray-100 dark:bg-gray-700">
-        <tr>
-          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Fecha</th>
-          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Categoría</th>
-          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Descripción</th>
-          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Monto</th>
-          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">Acciones</th>
-        </tr>
-      </thead>
-
-      <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-        {filteredExpenses.length > 0 ? (
-          filteredExpenses
-            .sort((a, b) => (a.createdAt > b.createdAt ? 1 : -1))
-            .map((expense) => (
-              <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{expense.createdAt.toLocaleDateString()}</td>
-                <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{expense.category}</td>
-                <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">{expense.description}</td>
-                <td className="px-4 py-2 text-sm text-gray-800 dark:text-gray-100">${expense.amount.toFixed(2)}</td>
-                <td className="px-4 py-2 flex space-x-2">
-                  <button
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-3 py-1 rounded-md transition"
-                    onClick={() => handleDelete(expense.id)}
-                  >
-                    🗑️
-                  </button>
-                  <button
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1 rounded-md transition"
-                    onClick={() => handleEdit(expense)}
-                  >
-                    ✏️
-                  </button>
-                </td>
-              </tr>
-            ))
-        ) : (
-          <tr>
-            <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-              No hay movimientos registrados este mes.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    {filteredExpenses.length > 0 ? (
+      filteredExpenses
+        .sort((a, b) => (a.createdAt > b.createdAt ? 1 : -1))
+        .map((expense) => (
+          <div key={expense.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl shadow p-4 flex flex-col gap-2 hover:shadow-lg transition">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-400 dark:text-gray-300">{expense.createdAt.toLocaleDateString()}</span>
+              <span className={`text-xs font-semibold px-2 py-1 rounded ${expense.type === 'Ingresos' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>{expense.type}</span>
+            </div>
+            <div className="text-sm font-semibold text-gray-700 dark:text-gray-100">{expense.category}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-300 mb-2">{expense.description}</div>
+            <div className="text-lg font-bold text-white dark:text-white">${expense.amount ? expense.amount.toFixed(2) : '0.00'}</div>
+            <div className="flex gap-2 mt-2">
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1 rounded-md transition"
+                onClick={() => handleDelete(expense.id)}
+              >
+                🗑️
+              </button>
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1 rounded-md transition"
+                onClick={() => handleEdit(expense)}
+              >
+                ✏️
+              </button>
+            </div>
+          </div>
+        ))
+    ) : (
+      <div className="col-span-full text-center text-sm text-gray-500 dark:text-gray-400 py-6">
+        No hay movimientos registrados este mes.
+      </div>
+    )}
   </div>
 </div>
 
@@ -844,7 +852,7 @@ const ExpenseSummary: React.FC = () => {
             legend: {
               position: 'right' as const,
               labels: {
-                color: isDarkMode ? '#ffffff' : '#000000',
+                color: isDarkMode ? '#ffff' : '#ffff',
                 padding: 20,
               }
             }
@@ -865,10 +873,10 @@ const ExpenseSummary: React.FC = () => {
           plugins: {
             ...chartOptions.plugins,
             legend: {
-              position: 'right' as const,
+              position: 'bottom' as const,
               labels: {
-                color: isDarkMode ? '#ffffff' : '#000000',
-                padding: 20,
+                color: isDarkMode ? '#ffff' : '#ffff',
+                padding: 5,
               }
             }
           }

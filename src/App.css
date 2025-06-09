@@ -1,12 +1,33 @@
 @import 'tailwindcss';
 
+/* Reset básico */
+
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
 .light-mode table {
   background-color: #121212 !important;
   color: #121212 !important;
   border: 1px solid #333;
 }
-
-
 
 /* Estilos responsivos */
 @media (max-width: 768px) {
